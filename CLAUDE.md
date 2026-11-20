@@ -44,7 +44,7 @@
 - 地圖縮放：`[data-zoom] svg` 由 `after()`（每次 render 後呼叫）掛上滾輪／拖曳／兩指／雙擊與＋－⟲；縮放狀態以 `data-zkey` 記在 `Z`，重畫後還原。**會保持大小的符號用 `zPin()` 產生（`data-x/y/k0`）**，`rescale()` 依 viewBox 寬重設 transform；線寬一律 `vector-effect:non-scaling-stroke`。拖曳後的那一下 click 會被吃掉（`svg._moved`）。
 - 連動高亮：pointerover 找 `[data-d]`／`[data-v]`，同 id 的 `path.t,.rrow,.dot,tbody tr,.pin` 加 `.hl`。
 - 圖例按鈕 `data-bin`／`data-binmap` → `V.binF`，路徑有 `data-b`，不符的加 `.dim`。
-- 定位圖（`vScatterHtml`）兩軸可調（2026-11-20 使用者要求）：`V.vsc={xmin,xmax,ymin,ymax,ylog}`（只在這次瀏覽，換區／換層級清掉）；輸入框 `data-vsc`、快選 `data-vscq`、對數／線性 `data-vsclog`、`vscAuto`；刻度 `linTicks`／`logTicks`（1-2-5）；點用 clipPath 裁切、範圍外不畫並計數。**拖曳框選**：svg 的 `data-brush` 存比例參數，pointerup 換算資料範圍；框選後 400ms 內的 click 會被吃掉（`V.brushAt`，因為重畫後 svg 已換掉）。
+- 定位圖（`vScatterHtml`）兩軸可調（2026-11-20 使用者要求）：`V.vsc={xmin,xmax,ymin,ymax,ylog}`（只在這次瀏覽，換區／換層級清掉）；輸入框 `data-vsc`、快選 `data-vscq`、對數／線性 `data-vsclog`、`vscAuto`；刻度 `linTicks`／`logTicks`（1-2-5）；點用 clipPath 裁切、範圍外不畫並計數。**拖曳框選**：svg 的 `data-brush` 存比例參數，pointerup 換算資料範圍；框選後 400ms 內的 click 會被吃掉（`V.brushAt`，因為重畫後 svg 已換掉）。行政區的商圈定位圖（`scatterHtml`）同一套，狀態 `V.asc={xmin,xmax,ymin,ymax,xlog}`（X 可對數／線性、Y 線性），事件 `data-asc`／`data-ascq`／`data-asclog`／`ascAuto`；框選共用，`data-brush` 第 11、12 個參數是 ylog、xlog，`data-bkey` 決定寫到 `V.vsc` 或 `V.asc`。只設最小值且超過自動上限時，上限自動放大（不然 min≥max 會整個退回自動）。
 - 其他：分頁＝步驟條（完成打 ✓、sticky）、條件卡可收合（`sss.condFold`）、一句話輸入、預算滑桿、找區／找里（datalist）、↑↓ 鍵、行政區比較（`S.cmp` 最多 3、底部 `#cmpTray`、`openCompare()` 雷達）、刪除店面可復原（toast 按鈕）、每頁 `nextCta()`、匯出選單 `details.menu`。拖滑桿用 `softRender()` 保留捲動與焦點。
 
 ## AI（`ai.js`，BYOK 7 家，服務商與 `callLLM` 複製自開店前置清單）
