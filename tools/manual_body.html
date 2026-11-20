@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>操作手冊｜開店選址評估</title>
+<link rel="icon" href="icons/icon-192.png">
+<style>
+:root{color-scheme:light;--bp:#1b4f86;--paper:#f8f5ec;--paper2:#efe9d8;--ink:#1d3557;--ink2:#4b5b73;--rule:#cdc5ae;--pin:#c8372d}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bp:#0c2442;--paper:#16263b;--paper2:#1c3049;--ink:#eef2f7;--ink2:#c3ccd9;--rule:#34496a;--pin:#f0675c}}
+:root[data-theme="dark"]{color-scheme:dark;--bp:#0c2442;--paper:#16263b;--paper2:#1c3049;--ink:#eef2f7;--ink2:#c3ccd9;--rule:#34496a;--pin:#f0675c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bp);background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:24px 24px;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.75;color:var(--ink);padding-inline:16px}
+main{max-width:860px;margin:24px auto 40px;background:var(--paper);border:1.5px solid var(--rule);border-radius:8px;padding:22px clamp(16px,4vw,36px)}
+h1{font-family:"Noto Serif TC",serif;margin:0 0 4px;font-size:1.9rem}
+h2{font-family:"Noto Serif TC",serif;border-bottom:2px solid var(--ink);padding-bottom:3px;margin-top:2em;font-size:1.3rem}
+h3{margin-bottom:.3em}
+a{color:var(--ink)}
+.top{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 18px}
+.top a{border:1.5px solid var(--ink);border-radius:5px;padding:3px 12px;text-decoration:none;font-weight:700}
+.note{background:var(--paper2);border-left:4px solid var(--pin);padding:8px 12px;border-radius:0 6px 6px 0}
+.tblw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem;min-width:520px}
+th,td{border:1px solid var(--rule);padding:5px 8px;text-align:left;vertical-align:top}
+th{background:var(--paper2)}
+code{background:var(--paper2);padding:0 4px;border-radius:3px}
+</style>
+</head>
+<body>
+<main>
+<h1>📖 開店選址評估｜操作手冊</h1>
+<p>店要開在哪裡，是開店前最難回頭的決定。這個工具分兩層幫你想：先在台北市、新北市、桃園市、新竹市、新竹縣共 70 個行政區裡，依店型與客群排出比較適合的區；再把你實地看過的店面填進來，用人流、能見度、交通、租金負擔、競爭、空間六項打分數比較。</p>
+<div class="top"><a href="index.html">← 回到工具</a><a href="#area">找區域</a><a href="#sites">比店面</a><a href="#count">人流計數</a><a href="#check">看店清單</a><a href="#data">資料來源</a><a href="#warn">使用警語</a><a href="#creator">創作者</a></div>
+
+<h2 id="start">快速開始</h2>
+<ol>
+<li>想先看看效果，按畫面上方「看範例」的任一家（全部是虛構店家），範例模式不會存任何資料。</li>
+<li>在「🗺 找區域」選<b>店型</b>、<b>主要客群</b>（可複選）、<b>範圍</b>（不選就是四縣市全部），有預算就填<b>店面月租預算</b>。</li>
+<li>看地圖上的紅圖釘（前 10 名）與「適合度排名」，點一區看右邊的區域卡，按「📍 在這區新增候選店面」。</li>
+<li>到現場看店，把月租、坪數等填進「🏪 比店面」，再用「👣 人流計數」在門口數人流。</li>
+<li>簽約前用「✅ 看店清單」逐項確認，最後按「➜ 帶到開店前置清單」接著排登記與手續。</li>
+</ol>
+
+<h2 id="area">🗺 找區域</h2>
+<h3>條件</h3>
+<ul>
+<li><b>店型</b>：決定 7 個評分項目的權重。例如餐飲店重視人潮密度，網路商店重視租金與工業區。</li>
+<li><b>主要客群</b>：學生看 15–24 歲比例與學校聚集；上班族看 25–44 歲比例與辦公區；家庭親子看 0–14 歲比例與住宅區；銀髮族看 65 歲以上比例；觀光客看觀光性質。</li>
+<li><b>月租預算</b>：和該區的租金級距比較；沒填時，租金級距越低分數越高。</li>
+<li><b>要靠近捷運／車站</b>：交通權重 +10。<b>客人開車騎車</b>：交通分數改成部分看「好不好停」（人口密度越低越好停）。<b>晚上營業</b>：夜間人潮多的區加分。</li>
+<li><b>⚖ 進階：調整評分權重</b>：拖拉 7 個滑桿自己決定比重，數字是相對比重，會自動換算成百分比。</li>
+</ul>
+<h3>7 個評分項目</h3>
+<div class="tblw"><table><tr><th>項目</th><th>怎麼算</th></tr>
+<tr><td>人潮密度</td><td>每平方公里人口，在 70 區裡的百分位（0～100）</td></tr>
+<tr><td>市場規模</td><td>行政區總人口的百分位</td></tr>
+<tr><td>客群吻合</td><td>目標客群的年齡比例百分位，加上區域性質（學校、辦公、住宅、觀光）</td></tr>
+<tr><td>消費力</td><td>綜合所得中位數的百分位</td></tr>
+<tr><td>交通</td><td>捷運／輕軌、台鐵站數＋高鐵站×2 的百分位；沒有車站是 0</td></tr>
+<tr><td>租金負擔</td><td>你的預算落在該區租金級距的哪裡（預算 ≥ 級距上限＝100；低於下限 7 成＝0）</td></tr>
+<tr><td>商圈性質</td><td>區域性質（商業核心、夜間人潮、住宅區…）和店型合不合</td></tr>
+</table></div>
+<p>適合度＝各項得分 × 權重的加總，滿分 100。排名長條就是這 7 段疊起來的，滑鼠移到色塊上會顯示「得分 × 權重＝幾分」。</p>
+<h3>圖表怎麼看</h3>
+<ul>
+<li><b>行政區地圖</b>：可切換 9 種圖層（適合度、人口密度、總人口、所得中位數、15–44 歲、0–14 歲、65 歲以上比例、車站數、租金級距），顏色越深數值越高，依 5 等分位數分級。選了範圍會自動放大到那幾個縣市。</li>
+<li><b>適合度排名</b>：前 10 名（可展開全部），點一列就選那一區。</li>
+<li><b>商圈定位圖</b>：橫軸人口密度（對數刻度）、縱軸所得中位數、圓的大小是人口。右上「人多・所得高」通常租金也高；左上「人少・所得高」適合目的型、高客單的店。</li>
+<li><b>區域卡</b>：人口、密度、所得、戶數、車站、租金級距，7 項得分、為什麼適合／要注意，年齡結構和四縣市平均比較，以及區內車站名稱。</li>
+<li><b>全部行政區數據表</b>：圖表的表格版，點欄位名稱排序。</li>
+</ul>
+
+<h2 id="sites">🏪 比店面</h2>
+<p>最多 5 間。不知道的欄位先空著，分數會即時更新。</p>
+<div class="tblw"><table><tr><th>評分項目</th><th>看什麼</th></tr>
+<tr><td>人流</td><td>門前每小時人數，20 人以下 0 分、1,500 人以上 100 分（對數）</td></tr>
+<tr><td>能見度</td><td>從路口看得清楚程度、店面寬、樓層（一樓巷內、二樓、地下室扣分）</td></tr>
+<tr><td>交通</td><td>走到捷運／公車站的分鐘數（3 分鐘內滿分、15 分鐘以上 0 分），加上停車</td></tr>
+<tr><td>租金負擔</td><td>租金占預估月營業額的比例：8% 以下接近滿分、25% 以上 0 分</td></tr>
+<tr><td>競爭環境</td><td>200 公尺內同業與互補店家。餐飲、攤販有少量同業反而能聚客，超過 3 家才扣分</td></tr>
+<tr><td>空間條件</td><td>坪數是否符合店型常見範圍、店況（可沿用／小改裝／大改）</td></tr>
+</table></div>
+<p><b>💰 營業額估算</b>：月營業額 ≈ 人流 × 進店率 × 客單價 × 營業時數 × 30 天。空白時用店型預設（灰字），也可以直接填月營業額。租金占營業額 10% 以下算寬鬆、10～15% 尚可、15% 以上偏重——這是常見的經驗法則，不是規定。</p>
+<p>圖表：店面總分（6 項疊成的長條）、租金占營業額（綠黃紅區間）、六項評分雷達（一次最多疊 3 間）、店面對照表。</p>
+<p><b>➜ 帶到開店前置清單</b>：開啟線上版開店前置清單，帶入店型、店名、預估月營業額與租店面。登記型態先帶「獨資行號」、員工數依店型猜，請在那邊再調整。</p>
+
+<h2 id="count">👣 人流計數</h2>
+<ol>
+<li>選店面、平日／假日、時段（早上、中午、下午、晚上）、要數幾分鐘（建議 15 分鐘）。</li>
+<li>站在店門口，每有一個行人經過就按一下大按鈕（電腦可按空白鍵）。第一下會自動開始計時，時間到會提醒。</li>
+<li>按「💾 存下這次」，換算成每小時人數，並把這間店面所有紀錄的平均自動填進「門前人流」。</li>
+</ol>
+<p>右邊的長條圖比較平日與假日各時段，能看出這個點是「午餐店」還是「晚上店」。只算經過店門口的行人，車裡的人不算。</p>
+
+<h2 id="check">✅ 看店清單</h2>
+<p>22 項簽約前要確認的事，分「法規與用途」「租約」「店面現況」「周邊與人流」四組，每間店面分開勾。右邊顯示各店面完成度。土地使用分區、建物用途、室內裝修、消防等能不能開店，一律以縣市政府與承辦機關認定為準。</p>
+
+<h2 id="export">匯出與分享</h2>
+<ul>
+<li><b>🖨 列印／⬇ 下載 PDF</b>：A4 報告，含條件、前 10 名地圖與表格、前 3 名說明、店面比較與看店清單進度，每頁有浮水印。下載 PDF 要連網（第一次會載入產生 PDF 的程式），沒網路請用列印另存 PDF。</li>
+<li><b>⬇ CSV</b>：70 區完整數據與分數，以及候選店面，可用 Excel 開啟。</li>
+<li><b>🔗 分享連結</b>：把條件與候選店面編進網址，對方打開就能看到同樣的比較（不含人流紀錄與勾選）。</li>
+<li><b>⚙ 常用設定</b>：店名、逐區修改租金級距、恢復預設權重、字體大小、資料備份／還原、看範例、關於本工具。</li>
+</ul>
+
+<h2 id="data">資料來源</h2>
+<div class="tblw"><table><tr><th>資料</th><th>來源</th><th>注意</th></tr>
+<tr><td>人口、戶數、年齡結構</td><td>內政部戶政司「村里戶數、單一年齡人口」開放資料（ODRP014），民國 115 年 10 月，彙總到鄉鎮市區</td><td>戶籍人口，不等於白天實際在該區活動的人口</td></tr>
+<tr><td>所得中位數</td><td>財政部財政資訊中心「綜稅綜合所得總額全國各縣市鄉鎮村里統計分析表」112 年度，各區「合計」列</td><td>單位千元／每一納稅單位；不含免稅、分離課稅所得與政府移轉支出</td></tr>
+<tr><td>行政區界線、面積</td><td>內政部國土測繪中心鄉鎮市區界線（經開源套件 taiwan-atlas 整理成 TopoJSON），面積由界線計算</td><td>面積為概略值，山區誤差較大</td></tr>
+<tr><td>車站</td><td>© OpenStreetMap contributors（ODbL）的捷運、輕軌、機場捷運、台鐵、高鐵站點，依界線判斷所在區，2026-11-20 整理</td><td>界線上的車站可能算到鄰區；興建中路線不算</td></tr>
+<tr><td>租金級距、區域性質</td><td>本工具自行整理</td><td><b>不是官方統計</b>，只做區與區的相對比較，可在 ⚙ 修改</td></tr>
+</table></div>
+
+<h2 id="warn">⚠ 使用警語</h2>
+<ul>
+<li>適合度與店面分數是本工具<b>自訂的規則式評分</b>，只能幫你縮小範圍、整理思路，<b>不保證營業成績</b>，也不是投資建議。</li>
+<li>官方統計都有時間差，且只到行政區層級；同一區不同街道差異很大，一定要到現場看。</li>
+<li>租金級距與區域性質是粗估；實際租金以當地行情為準。</li>
+<li>店面能不能開這種店，以縣市政府與承辦機關認定為準。</li>
+<li>你填的資料只存在這台裝置的瀏覽器，不會上傳；清除瀏覽器資料會不見，請定期備份。</li>
+<li>範例店家與店面全部是虛構的。</li>
+</ul>
+
+<h2 id="creator">👤 關於創作者</h2>
+{{CREATOR}}
+<p style="margin-top:2em"><a href="index.html">← 回到工具</a></p>
+</main>
+</body>
+</html>
