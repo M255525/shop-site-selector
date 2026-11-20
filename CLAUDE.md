@@ -35,6 +35,7 @@
 - 街區分頁：村里地圖（9 圖層、車站符號 圓＝捷運／方＝台鐵／菱＝高鐵、比例尺、行政區外框；線寬用 `vector-effect:non-scaling-stroke`）、村里卡、排名、街區定位圖（離車站 × 密度，座標軸依該區資料自動調整）、數據表；店面可選「所在里」（`site.village`）。
 - **PDF：html2canvas 不吃 SVG viewBox**，`svgToImg()` 先把報告地圖轉 PNG。列印直接用 SVG。
 - localStorage 前綴 `sss.`；`<html>` 字體屬性叫 `data-fsize`，按鈕用 `data-fontsize`（避開 `closest()` 撞名）。
+- 範例 `EXAMPLES` 10 個（2026-11-20 使用者要「再增加幾個產業別的案例」）：tea、brunch、salon、bar（台北酒吧 night）、chicken（中壢夜市 stall）、craft（大溪老街選物，**帶自訂 `weights`**，不然零售預設權重會把觀光小鎮排到後面）、senior（新北銀髮輔具）、gym（新北健身 service）、cram（竹北補習班）、warehouse（桃園網拍倉庫 online）；每個有 `ic`、`short`（範例列顯示）與完整 `label`（title 與 ⚙ 列表）。範例列 `.exlist` 可橫向捲動。e2e 會逐一進入每個範例檢查店面數與區域。全部虛構。
 - 範例模式不寫入 localStorage；分享 `#s=`（ctx＋店面，不含人流與勾選）。
 - 接力：店面卡「➜ 帶到開店前置清單」開 `https://m255525.github.io/shop-opening-checklist/#s=`（org 先帶 sole、sales＝預估月營業額）。
 - 上線改版：升 `service-worker.js` 的 `CACHE_NAME`，並同步改 `index.html` 七個 `?v=` 版本號與 `app.js` 的 `VER`（村里、統計區檔版本）。

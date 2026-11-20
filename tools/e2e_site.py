@@ -120,6 +120,15 @@ with sync_playwright() as p:
     rep = pg.evaluate('() => window._sss.reportEl().innerText')
     ok('街區（村里）' in rep, '報告含街區前 10 名')
     pg.click('[data-act=leaveDemo]')
+    # ---------- 10 個產業範例 ----------
+    keys = pg.evaluate('() => window.SSS.EXAMPLES.map(e => [e.key, e.sites.length])')
+    for k, ns in keys:
+        pg.click(f'[data-demo={k}]'); pg.click('[data-tab=area]'); pg.wait_for_timeout(150)
+        selok = pg.evaluate('() => !!window._sss.S.sel') and pg.locator('#detail').count() == 1
+        pg.click('[data-tab=sites]'); pg.wait_for_timeout(150)
+        ok(selok and pg.locator('.site').count() == ns and not errs, f'範例 {k}：{ns} 間店面、選好區域、無錯誤')
+    ok(len(keys) >= 10, f'範例數 {len(keys)}')
+    pg.click('[data-act=leaveDemo]')
     # ---------- 互動 ----------
     pg.click('[data-demo=tea]'); pg.click('[data-tab=area]'); pg.wait_for_timeout(300)
     vb0 = pg.get_attribute('#map', 'viewBox')

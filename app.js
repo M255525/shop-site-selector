@@ -134,7 +134,7 @@ function renderChrome(){
   if(tray){ tray.hidden = !S.cmp.length || V.tab !== 'area'; tray.innerHTML = S.cmp.length ? '<span class="small"><b>比較</b></span>' + S.cmp.map(function(id, i){ return '<span class="cchip"><i class="sw" style="background:' + SC[i] + '"></i>' + esc(id.slice(3)) + '<button data-act="cmpToggle" data-d="' + id + '" aria-label="移除' + esc(id) + '">✕</button></span>'; }).join('') + '<button class="btn sm" data-act="cmpOpen">📊 比較 ' + S.cmp.length + ' 區</button><button class="btn sm alt" data-act="cmpClear">清除</button>' : ''; }
   $('exStrip').className = 'exstrip' + (demo ? ' on' : '');
   $('exStrip').innerHTML = (demo ? '<b>範例模式</b>：資料不會存下來。' : '<span>看範例：</span>') +
-    D.EXAMPLES.map(function(e){ return '<button data-demo="' + e.key + '" class="' + (V.demoKey === e.key && demo ? 'cur' : '') + '">' + esc(e.label) + '</button>'; }).join('') +
+    '<div class="exlist">' + D.EXAMPLES.map(function(e){ return '<button data-demo="' + e.key + '" class="' + (V.demoKey === e.key && demo ? 'cur' : '') + '" title="' + esc(e.label) + '">' + (e.ic ? e.ic + ' ' : '') + esc(e.short || e.label) + '</button>'; }).join('') + '</div>' +
     (demo ? '<button data-act="leaveDemo">離開範例</button>' : '');
   $('foot').innerHTML = '人口：內政部戶政司（民國 ' + D.DIST.meta.popYm.slice(0, 3) + ' 年 ' + (+D.DIST.meta.popYm.slice(3)) + ' 月）・所得：財政部財政資訊中心 ' + D.DIST.meta.incYear + ' 年度綜稅所得・鄉鎮與村里界線：內政部國土測繪中心・車站與店家位置：© OpenStreetMap contributors<br>' +
     '👤 創作者 Mark Tsai（蔡豐全）・<a href="manual.html">📖 操作手冊</a>・<a href="#" data-act="warn">⚠ 使用警語</a>' + (standalone ? '' : '・<a href="#" data-act="install">📲 加入主畫面</a>') +

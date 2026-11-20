@@ -426,22 +426,60 @@ var CHECK = [
 
 /* ---------- 範例（全部虛構） ---------- */
 var EXAMPLES = [
-  {key:'tea', label:'學區手搖飲（台北、預算 12 萬）', ctx:{name:'青田小茶舖', type:'food', targets:['student', 'worker'], budget:12, cities:['臺北市'], transit:true, parking:false, night:false},
+  {key:'tea', ic:'🧋', short:'學區手搖飲', label:'學區手搖飲（台北、預算 12 萬）', ctx:{name:'青田小茶舖', type:'food', targets:['student', 'worker'], budget:12, cities:['臺北市'], transit:true, parking:false, night:false},
     sites:[
       {name:'大學路口轉角', district:'臺北市大安區', rent:13, ping:12, front:5, floor:'1', walk:3, comp:6, compl:5, vis:5, park:1, cond:'light', traffic:820, capture:5.5, ticket:70},
       {name:'巷內老公寓一樓', district:'臺北市大安區', rent:7.5, ping:15, front:4, floor:'1in', walk:7, comp:2, compl:3, vis:3, park:1, cond:'ready', traffic:260, capture:9, ticket:70},
       {name:'站前商場二樓', district:'臺北市中正區', rent:9, ping:20, front:6, floor:'2', walk:1, comp:3, compl:8, vis:2, park:0, cond:'heavy', traffic:1100, capture:3, ticket:70}],
     sessions:[{site:0, day:'wd', slot:'noon', min:15, n:230}, {site:0, day:'wd', slot:'pm', min:15, n:180}, {site:0, day:'we', slot:'pm', min:15, n:200},
       {site:1, day:'wd', slot:'noon', min:15, n:70}, {site:1, day:'we', slot:'pm', min:15, n:60}, {site:2, day:'wd', slot:'night', min:15, n:290}]},
-  {key:'brunch', label:'社區早午餐（新北、預算 8 萬）', ctx:{name:'晨光巷早午餐', type:'food', targets:['family', 'worker'], budget:8, cities:['新北市'], transit:false, parking:true, night:false},
+  {key:'brunch', ic:'🍳', short:'社區早午餐', label:'社區早午餐（新北、預算 8 萬）', ctx:{name:'晨光巷早午餐', type:'food', targets:['family', 'worker'], budget:8, cities:['新北市'], transit:false, parking:true, night:false},
     sites:[
       {name:'市場旁邊間', district:'新北市板橋區', rent:8, ping:25, front:7, floor:'1', walk:6, comp:4, compl:6, vis:4, park:1, cond:'light', traffic:480, ticket:180, capture:3, hours:8},
       {name:'國小對面', district:'新北市新莊區', rent:5.5, ping:22, front:5, floor:'1', walk:10, comp:2, compl:3, vis:4, park:2, cond:'ready', traffic:300, ticket:180, capture:4, hours:8}],
     sessions:[{site:0, day:'wd', slot:'am', min:20, n:180}, {site:0, day:'we', slot:'am', min:20, n:150}, {site:1, day:'wd', slot:'am', min:20, n:110}]},
-  {key:'salon', label:'親子美髮（新竹、預算 6 萬）', ctx:{name:'小樹親子髮藝', type:'beauty', targets:['family'], budget:6, cities:['新竹市', '新竹縣'], transit:false, parking:true, night:false},
+  {key:'salon', ic:'💇', short:'親子美髮', label:'親子美髮（新竹、預算 6 萬）', ctx:{name:'小樹親子髮藝', type:'beauty', targets:['family'], budget:6, cities:['新竹市', '新竹縣'], transit:false, parking:true, night:false},
     sites:[
       {name:'新社區大路旁', district:'新竹縣竹北市', rent:6, ping:20, front:6, floor:'1', walk:12, comp:2, compl:4, vis:4, park:2, cond:'ready', traffic:150, revenue:42},
       {name:'學校附近巷口', district:'新竹市東區', rent:4.8, ping:16, front:4, floor:'1in', walk:9, comp:3, compl:2, vis:3, park:1, cond:'light', traffic:120, revenue:30}],
+    sessions:[]},
+  {key:'bar', ic:'🍺', short:'精釀酒吧', label:'精釀酒吧（台北、晚上營業、預算 14 萬）', ctx:{name:'夜航精釀', type:'food', targets:['worker', 'tourist'], budget:14, cities:['臺北市'], transit:true, parking:false, night:true},
+    sites:[
+      {name:'捷運站旁巷弄二樓', district:'臺北市中山區', rent:11, ping:30, front:5, floor:'2', walk:3, comp:7, compl:9, vis:3, park:0, cond:'light', traffic:520, capture:2, ticket:550, hours:7},
+      {name:'老街區一樓轉角', district:'臺北市大同區', rent:9, ping:26, front:7, floor:'1', walk:6, comp:3, compl:5, vis:5, park:1, cond:'heavy', traffic:380, capture:3, ticket:500, hours:7},
+      {name:'商辦區騎樓店面', district:'臺北市信義區', rent:16, ping:28, front:8, floor:'1', walk:4, comp:5, compl:10, vis:4, park:0, cond:'ready', traffic:700, capture:1.8, ticket:600, hours:7}],
+    sessions:[{site:0, day:'wd', slot:'night', min:15, n:140}, {site:0, day:'we', slot:'night', min:15, n:170}, {site:1, day:'we', slot:'night', min:15, n:95}, {site:2, day:'wd', slot:'night', min:15, n:180}]},
+  {key:'chicken', ic:'🍗', short:'夜市雞排攤', label:'夜市雞排攤（桃園、晚上營業、預算 3 萬）', ctx:{name:'阿翔炸雞排', type:'stall', targets:['student', 'tourist'], budget:3, cities:['桃園市'], transit:false, parking:true, night:true},
+    sites:[
+      {name:'夜市主街攤位', district:'桃園市中壢區', rent:3.2, ping:2, front:2.5, floor:'1', walk:8, comp:6, compl:12, vis:5, park:1, cond:'ready', traffic:1300, capture:1.5, ticket:90, hours:6},
+      {name:'學校後門騎樓攤', district:'桃園市中壢區', rent:1.8, ping:3, front:3, floor:'1', walk:12, comp:2, compl:4, vis:4, park:2, cond:'ready', traffic:450, capture:3.5, ticket:90, hours:5},
+      {name:'市場口固定攤', district:'桃園市桃園區', rent:2.5, ping:3, front:3, floor:'1', walk:10, comp:3, compl:8, vis:4, park:1, cond:'light', traffic:700, capture:2.5, ticket:90, hours:6}],
+    sessions:[{site:0, day:'we', slot:'night', min:15, n:380}, {site:0, day:'wd', slot:'night', min:15, n:290}, {site:1, day:'wd', slot:'pm', min:15, n:120}, {site:2, day:'wd', slot:'night', min:15, n:170}]},
+  {key:'craft', ic:'🎁', short:'老街文創選物', label:'老街文創選物店（桃園、觀光客、預算 4 萬、自訂權重）', ctx:{name:'木構小賣所', type:'retail', targets:['tourist'], budget:4, cities:['桃園市'], transit:false, parking:true, night:false, weights:{dens:5, size:5, fit:35, inc:10, trans:5, rent:15, vibe:25}},
+    sites:[
+      {name:'老街主街一樓', district:'桃園市大溪區', rent:5.5, ping:12, front:4, floor:'1', walk:20, comp:5, compl:10, vis:5, park:1, cond:'ready', traffic:900, capture:1.2, ticket:380, hours:9},
+      {name:'老街旁巷口', district:'桃園市大溪區', rent:3, ping:15, front:4, floor:'1in', walk:20, comp:2, compl:4, vis:3, park:2, cond:'light', traffic:260, capture:2.5, ticket:380, hours:9}],
+    sessions:[{site:0, day:'we', slot:'pm', min:15, n:310}, {site:0, day:'wd', slot:'pm', min:15, n:90}, {site:1, day:'we', slot:'pm', min:15, n:85}]},
+  {key:'senior', ic:'🦯', short:'銀髮輔具藥妝', label:'銀髮輔具藥妝店（新北、預算 5 萬）', ctx:{name:'安康生活館', type:'retail', targets:['senior', 'family'], budget:5, cities:['新北市'], transit:true, parking:false, night:false},
+    sites:[
+      {name:'醫院對面一樓', district:'新北市永和區', rent:6.5, ping:18, front:5, floor:'1', walk:5, comp:3, compl:7, vis:4, park:0, cond:'ready', traffic:600, capture:1, ticket:650, hours:11},
+      {name:'傳統市場邊', district:'新北市中和區', rent:4.2, ping:20, front:5, floor:'1', walk:9, comp:2, compl:9, vis:4, park:1, cond:'light', traffic:480, capture:1.2, ticket:520, hours:11}],
+    sessions:[{site:0, day:'wd', slot:'am', min:15, n:160}, {site:1, day:'wd', slot:'am', min:15, n:130}]},
+  {key:'gym', ic:'🏋', short:'健身工作室', label:'小型健身工作室（新北、預算 6 萬）', ctx:{name:'核心動能工作室', type:'service', targets:['worker', 'family'], budget:6, cities:['新北市'], transit:false, parking:true, night:true},
+    sites:[
+      {name:'新社區大樓店面二樓', district:'新北市林口區', rent:5, ping:40, front:6, floor:'2', walk:10, comp:2, compl:5, vis:3, park:2, cond:'light', traffic:200, revenue:38},
+      {name:'捷運站附近地下室', district:'新北市新店區', rent:4.5, ping:45, front:4, floor:'b1', walk:4, comp:3, compl:6, vis:2, park:1, cond:'heavy', traffic:350, revenue:32}],
+    sessions:[]},
+  {key:'cram', ic:'📚', short:'兒童美語補習班', label:'兒童美語補習班（新竹、預算 8 萬）', ctx:{name:'小樹英語學苑', type:'service', targets:['family'], budget:8, cities:['新竹縣', '新竹市'], transit:false, parking:true, night:false},
+    sites:[
+      {name:'國小對面二樓', district:'新竹縣竹北市', rent:7, ping:45, front:6, floor:'2', walk:15, comp:5, compl:6, vis:4, park:1, cond:'ready', traffic:180, revenue:60},
+      {name:'新社區大路一樓', district:'新竹縣竹北市', rent:9.5, ping:38, front:8, floor:'1', walk:14, comp:3, compl:4, vis:5, park:2, cond:'light', traffic:140, revenue:55},
+      {name:'科學園區旁巷內', district:'新竹市東區', rent:6, ping:40, front:5, floor:'1in', walk:18, comp:4, compl:3, vis:3, park:2, cond:'heavy', traffic:110, revenue:45}],
+    sessions:[]},
+  {key:'warehouse', ic:'📦', short:'網拍出貨倉庫', label:'網拍出貨倉庫（桃園、預算 3 萬）', ctx:{name:'好物快出貨', type:'online', targets:[], budget:3, cities:['桃園市'], transit:false, parking:true, night:false},
+    sites:[
+      {name:'工業區鐵皮倉庫', district:'桃園市蘆竹區', rent:2.8, ping:35, front:6, floor:'1', walk:25, comp:0, compl:3, vis:2, park:2, cond:'ready', revenue:60},
+      {name:'住宅區一樓車庫', district:'桃園市八德區', rent:2.2, ping:20, front:4, floor:'1in', walk:15, comp:0, compl:2, vis:2, park:1, cond:'light', revenue:60}],
     sessions:[]}
 ];
 
