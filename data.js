@@ -212,9 +212,18 @@ var POI_K = ['food', 'retail', 'beauty', 'service', 'conv'];
 var POI_N = {food:'餐飲', retail:'零售', beauty:'美容美髮', service:'生活服務', conv:'便利商店'};
 var SAME = {food:'food', stall:'food', retail:'retail', beauty:'beauty', service:'service', online:null};
 var ST_K = {metro:'捷運', rail:'台鐵', hsr:'高鐵'};
-function vShare(v, i){ return v.pop ? v.age[i] / v.pop : 0; }
+/* 村里用 5 段年齡（0–14、15–24、25–44、45–64、65+）；最小統計區用 a6（0–9、10–19、20–29、30–49、50–59、60+） */
+function vShare(v, i){ return v.pop && v.age ? v.age[i] / v.pop : 0; }
+function tShare(v, k){
+  if(!v.pop) return 0;
+  if(v.a6){ var a = v.a6; return (k === 'student' ? a[1] + a[2] : k === 'worker' ? a[2] + a[3] : k === 'family' ? a[0] : k === 'senior' ? a[5] : 0) / v.pop; }
+  return (k === 'student' ? v.age[1] : k === 'worker' ? v.age[2] : k === 'family' ? v.age[0] : k === 'senior' ? v.age[4] : 0) / v.pop;
+}
+var TGT_AGE = {village:{student:'15–24 歲', worker:'25–44 歲', family:'0–14 歲', senior:'65 歲以上'}, stat:{student:'10–29 歲', worker:'20–49 歲', family:'0–9 歲', senior:'60 歲以上'}};
+var A6_N = ['0–9 歲', '10–19 歲', '20–29 歲', '30–49 歲', '50–59 歲', '60 歲以上'];
 function vPoi(v){ return v.poi.reduce(function(a, b){ return a + b; }, 0); }
-function vPoiDens(v, k){ var n = k ? v.poi[POI_K.indexOf(k)] : vPoi(v); return v.area > 0 ? n / v.area : 0; }
+var R3_AREA = Math.PI * .3 * .3;   // 最小統計區的店家數是中心半徑 300 公尺內
+function vPoiDens(v, k){ var n = k ? v.poi[POI_K.indexOf(k)] : vPoi(v); return v.r3 ? n / R3_AREA : v.area > 0 ? n / v.area : 0; }
 function transScore(m){ return clamp((1500 - m) / (1500 - 250) * 100, 0, 100); }
 function scoreVillages(list, ctx){
   ctx = ctx || {};
@@ -222,7 +231,7 @@ function scoreVillages(list, ctx){
   if(!L2.length) return [];
   var pd = pctFn(L2.map(function(v){ return v.dens; })), pb = pctFn(L2.map(function(v){ return vPoiDens(v); }));
   var pi = pctFn(L2.filter(function(v){ return v.inc; }).map(function(v){ return v.inc; }));
-  var ps = [0, 1, 2, 3, 4].map(function(i){ return pctFn(L2.map(function(v){ return vShare(v, i); })); });
+  var ps = {}; ['student', 'worker', 'family', 'senior'].forEach(function(k){ ps[k] = pctFn(L2.map(function(v){ return tShare(v, k); })); });
   var pc = same ? pctFn(L2.map(function(v){ return vPoiDens(v, same); })) : null;
   var base = WEIGHTS && ctx.vweights && typeof ctx.vweights === 'object' ? ctx.vweights : VWEIGHTS[type] || VWEIGHTS.food, w = {}, sw = 0;
   VCOMPS.forEach(function(c){ var v = +base[c.k]; w[c.k] = isFinite(v) && v >= 0 ? v : 0; });
@@ -235,10 +244,10 @@ function scoreVillages(list, ctx){
     var t = ctx.targets || [];
     if(!t.length) s.fit = 50;
     else { var f = 0; t.forEach(function(k){
-      if(k === 'student') f += ps[1](vShare(v, 1));
-      else if(k === 'worker') f += .5 * ps[2](vShare(v, 2)) + .5 * pb(vPoiDens(v));
-      else if(k === 'family') f += ps[0](vShare(v, 0));
-      else if(k === 'senior') f += ps[4](vShare(v, 4));
+      if(k === 'student') f += ps.student(tShare(v, 'student'));
+      else if(k === 'worker') f += .5 * ps.worker(tShare(v, 'worker')) + .5 * pb(vPoiDens(v));
+      else if(k === 'family') f += ps.family(tShare(v, 'family'));
+      else if(k === 'senior') f += ps.senior(tShare(v, 'senior'));
       else if(k === 'tourist') f += pb(vPoiDens(v));
     }); s.fit = f / t.length; }
     s.inc = v.inc ? pi(v.inc) : 50;
@@ -261,23 +270,56 @@ function explainVillage(r, ctx){
   var st = v.st[2] <= 400 ? '走路約 ' + Math.max(1, Math.round(v.st[2] / 80)) + ' 分鐘' : '約 ' + (v.st[2] >= 1000 ? (v.st[2] / 1000).toFixed(1) + ' 公里' : v.st[2] + ' 公尺');
   if(s.trans >= 75) good.push('離' + ST_K[v.st[1]] + '「' + v.st[0] + '」站' + st + (v.s5 > 1 ? '，500 公尺內有 ' + v.s5 + ' 站' : ''));
   if(s.dens >= 75) good.push('人口密集（每平方公里約 ' + v.dens.toLocaleString() + ' 人）');
-  if(s.inc >= 75 && v.inc) good.push('所得中位數較高（' + v.inc + ' 千元）');
-  if(s.biz >= 75) good.push('店家多、街上比較熱鬧（OSM 登錄 ' + vPoi(v) + ' 家）');
+  if(s.inc >= 75 && v.inc) good.push((v.a6 ? '所屬里的' : '') + '所得中位數較高（' + v.inc + ' 千元）');
+  var where = v.r3 ? '半徑 300 公尺內' : '';
+  if(s.biz >= 75) good.push('店家多、街上比較熱鬧（' + where + 'OSM 登錄 ' + vPoi(v) + ' 家）');
   if(s.fit >= 75 && ctx.targets && ctx.targets.length) good.push('目標客群比例較高');
-  if(same && (ctx.type === 'food' || ctx.type === 'stall') && s.comp >= 70) good.push('同類店家聚集，有美食聚落效果（OSM 登錄餐飲 ' + v.poi[0] + ' 家）');
+  if(same && (ctx.type === 'food' || ctx.type === 'stall') && s.comp >= 70) good.push('同類店家聚集，有美食聚落效果（' + where + 'OSM 登錄餐飲 ' + v.poi[0] + ' 家）');
   if(s.trans < 25) warn.push('離最近車站「' + v.st[0] + '」' + st + '，客人多半騎車開車');
   if(s.dens < 25) warn.push('人口較稀，路過人潮少');
-  if(same && ctx.type !== 'food' && ctx.type !== 'stall' && s.comp < 30) warn.push('同類店家多（OSM 登錄' + POI_N[same] + ' ' + v.poi[POI_K.indexOf(same)] + ' 家），要想清楚差異化');
+  if(same && ctx.type !== 'food' && ctx.type !== 'stall' && s.comp < 30) warn.push('同類店家多（' + where + 'OSM 登錄' + POI_N[same] + ' ' + v.poi[POI_K.indexOf(same)] + ' 家），要想清楚差異化');
   if(!v.inc) warn.push('沒有所得資料（可能是新設或調整過的里），消費力先以中間值計算');
-  if(vShare(v, 4) > .28) warn.push('65 歲以上占 ' + Math.round(vShare(v, 4) * 100) + '%');
+  var old = tShare(v, 'senior'), oldN = v.a6 ? '60 歲以上' : '65 歲以上';
+  if(old > (v.a6 ? .35 : .28)) warn.push(oldN + '占 ' + Math.round(old * 100) + '%');
+  if(v.a6 && v.pop < 80) warn.push('這塊人口只有 ' + v.pop + ' 人，數字容易有大起大落');
   return {good:good.slice(0, 4), warn:warn.slice(0, 3)};
 }
 var VLAYERS = {
   score:{n:'街區適合度'}, dens:{n:'人口密度', v:function(v){ return v.dens; }}, inc:{n:'所得中位數', v:function(v){ return v.inc; }},
-  young:{n:'15–44 歲比例', v:function(v){ return r1((vShare(v, 1) + vShare(v, 2)) * 100); }}, kids:{n:'0–14 歲比例', v:function(v){ return r1(vShare(v, 0) * 100); }},
-  old:{n:'65 歲以上比例', v:function(v){ return r1(vShare(v, 4) * 100); }}, st:{n:'離車站距離', v:function(v){ return v.st[2]; }, rev:true},
-  biz:{n:'店家數（OSM）', v:function(v){ return vPoi(v); }}, same:{n:'同類店家（OSM）', v:null}
+  young:{n:'15–44 歲比例', ns:'20–49 歲比例', v:function(v){ return r1((v.a6 ? tShare(v, 'worker') : vShare(v, 1) + vShare(v, 2)) * 100); }},
+  kids:{n:'0–14 歲比例', ns:'0–9 歲比例', v:function(v){ return r1(tShare(v, 'family') * 100); }},
+  old:{n:'65 歲以上比例', ns:'60 歲以上比例', v:function(v){ return r1(tShare(v, 'senior') * 100); }}, st:{n:'離車站距離', v:function(v){ return v.st[2]; }, rev:true},
+  biz:{n:'店家數（OSM）', ns:'300m 內店家（OSM）', v:function(v){ return vPoi(v); }}, same:{n:'同類店家（OSM）', v:null}
 };
+
+/* ---------- 一句話設定條件（免金鑰的規則式解析；有金鑰時 AI 也只能回傳這些欄位） ---------- */
+function parseText(s){
+  s = String(s || '').replace(/新竹(北區|東區|香山區)/g, '新竹市$1').slice(0, 500); var o = {}, found = [];
+  var T = [['stall', /攤|市集|餐車/], ['food', /餐|飲|咖啡|茶|早午餐|小吃|麵|飯|甜點|烘焙|麵包|便當|酒吧|火鍋|燒烤|手搖/], ['beauty', /美髮|美容|美甲|髮廊|理髮|剪髮|美睫|按摩|SPA|spa/], ['online', /網店|網路|電商|蝦皮|網購|倉庫|出貨/], ['service', /工作室|教室|補習|洗衣|維修|攝影|健身|瑜珈|診所|諮詢|設計/],
+    ['retail', /零售|服飾|衣服|選物|雜貨|書店|花店|文具|藥妝|寵物用品|商店/]];
+  for(var i = 0; i < T.length; i++) if(T[i][1].test(s)){ o.type = T[i][0]; found.push('店型：' + TYPES[o.type].n); break; }
+  var G = [['student', /學生|大學|學區|年輕人|高中/], ['worker', /上班族|白領|辦公|通勤/], ['family', /家庭|親子|小孩|兒童|媽媽|社區/], ['senior', /長輩|銀髮|老人|樂齡|高齡/], ['tourist', /觀光|遊客|旅客|外國人/]];
+  var tg = G.filter(function(g){ return g[1].test(s); }).map(function(g){ return g[0]; });
+  if(tg.length){ o.targets = tg; found.push('客群：' + tg.map(function(t){ return TARGETS[t].n; }).join('、')); }
+  var s2 = s.replace(/新北市?/g, '　'), cs = [];
+  if(/臺北|台北|北市/.test(s2)) cs.push('臺北市');
+  if(/新北/.test(s)) cs.push('新北市');
+  if(/桃園/.test(s)) cs.push('桃園市');
+  if(/新竹市|竹市/.test(s)) cs.push('新竹市');
+  if(/新竹縣|竹縣/.test(s)) cs.push('新竹縣');
+  if(/新竹/.test(s) && !/新竹[市縣]|竹市|竹縣/.test(s)) cs.push('新竹市', '新竹縣');
+  // 行政區全名（大安區、竹北市、湖口鄉…）：記下來當焦點，並把所屬縣市加進範圍
+  var dm = L.filter(function(d){ var stem = d.name.replace(/[區市鎮鄉]$/, ''); return s.indexOf(d.name) >= 0 && d.name.length > 2 || s.indexOf(d.city + d.name) >= 0 || s.indexOf(d.city.replace('臺', '台') + d.name) >= 0 || stem.length >= 2 && s.indexOf(stem) >= 0 && !(stem === '新竹' || stem === '桃園'); });
+  if(dm.length){ o.focus = dm[0].id; found.push('行政區：' + dm.map(function(d){ return d.id; }).join('、')); dm.forEach(function(d){ cs.push(d.city); }); }
+  cs = cs.filter(function(c, i, a){ return a.indexOf(c) === i; });
+  if(cs.length){ o.cities = cs; found.push('範圍：' + cs.join('、')); }
+  var m = /(?:月租|租金|預算|房租)[^0-9０-９]{0,6}([0-9０-９]+(?:\.[0-9]+)?)\s*(萬|千|元)?/.exec(s) || /([0-9]+(?:\.[0-9]+)?)\s*萬[^0-9]{0,4}(?:月租|租金|房租|以內|以下)/.exec(s);
+  if(m){ var n = parseFloat(m[1].replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 65248); })); var u = m[2] || '萬'; if(u === '千') n = n / 10; else if(u === '元') n = n / 10000; if(n > 0 && n < 999){ o.budget = Math.round(n * 10) / 10; found.push('月租預算：' + o.budget + ' 萬'); } }
+  if(/捷運|車站|站前|交通方便/.test(s)){ o.transit = true; found.push('要靠近車站'); }
+  if(/停車|開車|騎車/.test(s)){ o.parking = true; found.push('客人開車騎車'); }
+  if(/晚上|夜間|宵夜|夜貓|深夜/.test(s)){ o.night = true; found.push('晚上營業'); }
+  return {ctx:o, found:found};
+}
 
 /* ---------- 第二層：候選店面 ---------- */
 var FLOORS = {'1':'一樓臨街', '1in':'一樓（巷內／騎樓後）', '2':'二樓以上', 'b1':'地下室'};
@@ -414,7 +456,7 @@ var API = {
   clamp:clamp, r1:r1,
   VCOMPS:VCOMPS, VWEIGHTS:VWEIGHTS, VLAYERS:VLAYERS, POI_K:POI_K, POI_N:POI_N, SAME:SAME, ST_K:ST_K,
   CITY_SLUG:{'臺北市':'tpe', '新北市':'ntpc', '桃園市':'tyc', '新竹市':'hsc', '新竹縣':'hsq'},
-  scoreVillages:scoreVillages, explainVillage:explainVillage, vShare:vShare, vPoi:vPoi, vPoiDens:vPoiDens, transScore:transScore
+  parseText:parseText, scoreVillages:scoreVillages, explainVillage:explainVillage, vShare:vShare, tShare:tShare, TGT_AGE:TGT_AGE, A6_N:A6_N, R3_AREA:R3_AREA, vPoi:vPoi, vPoiDens:vPoiDens, transScore:transScore
 };
 if(typeof module !== 'undefined') module.exports = API; else root.SSS = API;
 })(typeof window !== 'undefined' ? window : this);

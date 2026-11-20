@@ -291,6 +291,64 @@ table.t tbody tr{cursor:pointer}
 .rentov select{width:auto;padding:1px 4px}
 .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:8px 16px;border-radius:6px;z-index:95;font-size:.9rem;max-width:90vw;box-shadow:0 6px 20px rgba(0,0,0,.3)}
 
+
+/* ---------- 互動與版面優化 ---------- */
+.tabs{position:sticky;top:var(--mq);z-index:30;background:linear-gradient(var(--bp) 70%,transparent);padding-top:6px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{white-space:nowrap;flex:none}
+.tab.done .no{color:var(--good);font-weight:900}
+.menu{position:relative}
+.menu>summary{list-style:none;display:inline-block}
+.menu>summary::-webkit-details-marker{display:none}
+.menubox{position:absolute;top:calc(100% + 4px);left:0;z-index:70;background:var(--paper);border:1.5px solid var(--rule);border-radius:8px;box-shadow:var(--shadow);padding:6px;min-width:250px;display:flex;flex-direction:column}
+.menubox button{background:none;border:0;text-align:left;padding:8px 10px;border-radius:5px;cursor:pointer;font-weight:700;color:var(--ink)}
+.menubox button:hover{background:var(--paper2)}
+.menubox small{display:block;font-weight:400;color:var(--muted);font-size:.76rem}
+.condcard{margin-bottom:12px}
+.condhead{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.condhead .nl{display:flex;gap:6px;flex:1 1 360px;min-width:0}
+.condhead .nl input{flex:1;min-width:0}
+.findbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:0 0 12px}
+.findbar label{font-weight:700;font-size:.88rem}
+.findbar input{max-width:260px}
+.nextcta{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:flex-end;margin-top:16px;padding:10px 12px;border:1.5px dashed var(--rule);border-radius:8px;background:var(--paper2)}
+.nextcta span{flex:1 1 240px;font-weight:700;color:var(--ink2)}
+#cmpTray{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:75;background:var(--paper);border:2px solid var(--ink);border-radius:999px;padding:6px 10px 6px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;box-shadow:var(--shadow);max-width:calc(100vw - 32px)}
+.cchip{display:inline-flex;align-items:center;gap:4px;background:var(--paper2);border-radius:999px;padding:2px 4px 2px 8px;font-size:.84rem;font-weight:700}
+.cchip button{border:0;background:none;cursor:pointer;color:var(--muted);padding:0 4px}
+.mapwrap{touch-action:pan-x pan-y}
+#map,#vmap{cursor:grab}
+#map.panning,#vmap.panning{cursor:grabbing}
+.zoombar{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:4px}
+.zoombar button{width:32px;height:32px;border-radius:6px;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);font-size:1.1rem;font-weight:900;cursor:pointer;line-height:1;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+.zoombar button:hover{background:var(--paper2)}
+.scalebar{position:absolute;left:10px;bottom:10px;font-size:.72rem;font-family:"JetBrains Mono",monospace;color:var(--ink);pointer-events:none;background:color-mix(in srgb,var(--paper) 75%,transparent);padding:2px 6px;border-radius:4px}
+.scalebar i{display:block;height:5px;background:var(--ink);border-radius:1px;margin-bottom:2px;width:60px}
+#map path.t,#vmap path.t{vector-effect:non-scaling-stroke;stroke-width:.8px}
+#map path.t.dim,#vmap path.t.dim{opacity:.18}
+#map path.hl,#vmap path.hl{stroke:var(--pin)!important;stroke-width:2.5px!important}
+.rrow.hl{background:var(--paper2);border-color:var(--rule)}
+.svgchart .dot.hl{stroke:var(--pin);stroke-width:3;opacity:1}
+table.t tbody tr.hl td{background:var(--paper2)}
+.pin.hl circle{fill:var(--ink)}
+.dout{fill:none;stroke:var(--ink);stroke-width:2.2px;vector-effect:non-scaling-stroke;pointer-events:none}
+.vlines path{fill:none;stroke:var(--ink);stroke-width:1px;stroke-dasharray:4 3;vector-effect:non-scaling-stroke;pointer-events:none;opacity:.7}
+.zl{pointer-events:none}
+.lgb{border:1px solid transparent;background:none;border-radius:4px;padding:1px 5px;cursor:pointer;font:inherit;color:inherit}
+.lgb:hover{border-color:var(--rule)}
+.lgb.on{border-color:var(--ink);background:var(--paper2);font-weight:700}
+.lgb.off{opacity:.45}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid var(--rule);border-top-color:var(--ink);border-radius:50%;animation:spin .8s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast .tbtn{margin-left:12px;background:var(--paper);color:var(--ink);border:0;border-radius:4px;padding:2px 10px;font-weight:700;cursor:pointer}
+.aiout{max-height:60vh;overflow-y:auto;border:1px solid var(--rule2);border-radius:6px;padding:4px 14px;background:var(--paper2);font-size:.92rem}
+.aiout h3{font-family:"Noto Serif TC",serif;font-size:1rem;margin:12px 0 4px}
+.aiout ul{margin:4px 0;padding-left:1.3em}
+.aiset{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 12px}
+.aiset label{font-size:.82rem;font-weight:700;display:flex;flex-direction:column;gap:3px}
+.card,.site{transition:box-shadow .2s}
+.rrow{transition:background .15s}
+@media (max-width:600px){.hbtn{padding:4px 9px;font-size:.84rem}.titleblock{display:none}.condhead .nl{flex-basis:100%}}
 #pdfWatermark{display:none}
 #printArea{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}#marqueeTrack{animation:marquee-scroll 90s linear infinite!important}}
@@ -299,8 +357,9 @@ table.t tbody tr{cursor:pointer}
   body{background:#fff!important;padding:0!important;color:#222}
   body>*:not(#printArea):not(#pdfWatermark){display:none!important}
   #printArea{display:block!important}
-  #pdfWatermark{display:block!important;position:fixed;inset:0;display:flex!important;align-items:center;justify-content:center;opacity:.11;z-index:-1}
+  #pdfWatermark{position:fixed;inset:0;display:flex!important;align-items:center;justify-content:center;opacity:.11;z-index:50;pointer-events:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #pdfWatermark img{width:42%}
+  #printArea .kp,#printArea tr{break-inside:avoid}
 }
 </style>
 </head>
@@ -317,10 +376,13 @@ table.t tbody tr{cursor:pointer}
     </div>
   </header>
   <div class="hbtns" style="margin:-4px 0 10px">
-    <button class="hbtn" data-act="print">🖨 列印</button>
-    <button class="hbtn" data-act="pdf">⬇ 下載 PDF</button>
-    <button class="hbtn" data-act="csv">⬇ CSV</button>
-    <button class="hbtn" data-act="share">🔗 分享連結</button>
+    <details class="menu"><summary class="hbtn">⬇ 匯出與分享 ▾</summary><div class="menubox">
+      <button data-act="pdf">📄 下載 PDF 報告<small>每頁有浮水印</small></button>
+      <button data-act="print">🖨 列印／另存 PDF<small>每頁有浮水印</small></button>
+      <button data-act="csv">📊 下載 CSV<small>70 區＋街區＋店面數據</small></button>
+      <button data-act="share">🔗 複製分享連結<small>含條件與候選店面</small></button>
+    </div></details>
+    <button class="hbtn" data-act="aiSettings">🤖 AI 設定</button>
     <a class="hbtn" href="manual.html">📖 操作手冊</a>
     <button class="hbtn" data-act="settings">⚙ 常用設定</button>
   </div>
@@ -330,13 +392,16 @@ table.t tbody tr{cursor:pointer}
   <main class="sheet" id="main"></main>
   <footer class="foot" id="foot"></footer>
 </div>
+<div id="cmpTray" hidden></div>
 <div id="tip" role="tooltip"></div>
 <div id="printArea"></div>
 <div id="modal" hidden><div class="box" id="modalBox" role="dialog" aria-modal="true"></div></div>
-<script src="districts_data.js?v=20261120b"></script>
-<script src="map_data.js?v=20261120b"></script>
-<script src="data.js?v=20261120b"></script>
-<script src="watermark.js?v=20261120b"></script>
-<script src="app.js?v=20261120b"></script>
+<script src="districts_data.js?v=20261120c"></script>
+<script src="map_data.js?v=20261120c"></script>
+<script src="data.js?v=20261120c"></script>
+<script src="watermark.js?v=20261120c"></script>
+<script src="app.js?v=20261120c"></script>
+<script src="ui.js?v=20261120c"></script>
+<script src="ai.js?v=20261120c"></script>
 </body>
 </html>

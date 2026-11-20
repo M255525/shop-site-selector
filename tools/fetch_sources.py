@@ -1,5 +1,5 @@
 """重抓原始資料到 tools/raw/（不進版控）。用法：python tools/fetch_sources.py [人口年月 例 11510] [所得年度 例 112]
-之後依序跑：count_stations.py → merge_raw.py → build_data.py → build_map.py → build_villages.py
+之後依序跑：count_stations.py → merge_raw.py → build_data.py → build_map.py → build_villages.py；最小統計區另跑 fetch_segis.py → build_stat.py（要在 build_villages.py 之後）
 ※ 村里界 shapefile 版本換了要改 build_villages.py 的 SHP、SHP_DATE
 ※ 換年月／年度要同步改 merge_raw.py 開頭的 YM、IY"""
 import sys, io, os, subprocess, urllib.request, urllib.parse

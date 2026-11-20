@@ -10,6 +10,13 @@ srv = socketserver.TCPServer(('127.0.0.1', 0), H); port = srv.server_address[1]
 threading.Thread(target=srv.serve_forever, daemon=True).start()
 URL = f'http://127.0.0.1:{port}/index.html'
 fails = []
+MOCK = """() => { localStorage.setItem('sss.ai', JSON.stringify({provider:'gemini', key:'TEST-KEY-123'})); window.__req = [];
+  window.fetch = async (url, opt) => { window.__req.push({url:String(url), headers:opt && opt.headers, body:opt && opt.body});
+    const b = JSON.parse(opt.body), p = b.contents[0].parts.map(x => x.text || '').join(''), img = b.contents[0].parts.some(x => x.inline_data);
+    let t = '## 一句話結論\\n適合。\\n- **優勢**：人多\\n- 風險：租金高';
+    if(p.indexOf('轉成 JSON') >= 0) t = JSON.stringify({type:'retail', targets:['tourist'], cities:['桃園市'], focus:'桃園市大溪區', budget:4, found:['大溪老街選物店']});
+    if(img) t = JSON.stringify({vis:4, front_m:6.5, floor:'1', cond:'ready', observations:['騎樓寬'], risks:['招牌被樹擋'], ask:['電力容量']});
+    return new Response(JSON.stringify({candidates:[{content:{parts:[{text:t}]}}]}), {status:200, headers:{'content-type':'application/json'}}); }; }"""
 def ok(c, m):
     print(('PASS ' if c else 'FAIL ') + m)
     if not c: fails.append(m)
@@ -67,7 +74,7 @@ with sync_playwright() as p:
     ok(st['sites'][-1]['village'] == vid and vname in st['sites'][-1]['name'], '在這個里新增候選店面')
     ok(pg.locator(f'.site [data-sk=village] option[value="{vid}"][selected]').count() == 1, '店面卡顯示所在里')
     ok(vname in pg.inner_text('#cmp'), '對照表有所在里')
-    pg.click('[data-act=delSite] >> nth=-1'); pg.click('[data-act=delSite] >> nth=-1'); pg.wait_for_timeout(200)
+    pg.click('[data-act=delSite] >> nth=-1'); pg.wait_for_timeout(200)
     # 人流
     pg.click('[data-tab=count]')
     for _ in range(12): pg.click('#tapBtn')
@@ -105,13 +112,78 @@ with sync_playwright() as p:
     pg.add_script_tag(url='https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js')
     pg.wait_for_function('() => window.html2pdf')
     pg.evaluate("""() => { window.__pdf = null; html2pdf.Worker.prototype.save = function(){ return this.then(function(){ window.__pdf = this.prop.pdf.output('datauristring'); }); }; }""")
-    pg.click('[data-act=pdf]')
+    pg.click('.menu summary'); pg.click('.menubox [data-act=pdf]')
     pg.wait_for_function('() => window.__pdf', timeout=60000)
     data = pg.evaluate('() => window.__pdf'); raw = base64.b64decode(data.split(',')[1])
     open(os.path.join(ROOT, 'tools', 'raw', 'e2e_report.pdf'), 'wb').write(raw)
     ok(raw[:4] == b'%PDF' and len(raw) > 50000, f'PDF 產生 {len(raw)//1024} KB')
     rep = pg.evaluate('() => window._sss.reportEl().innerText')
     ok('街區（村里）' in rep, '報告含街區前 10 名')
+    pg.click('[data-act=leaveDemo]')
+    # ---------- 互動 ----------
+    pg.click('[data-demo=tea]'); pg.click('[data-tab=area]'); pg.wait_for_timeout(300)
+    vb0 = pg.get_attribute('#map', 'viewBox')
+    pg.evaluate("() => { const m = document.querySelector('#map'); window.scrollTo(0, m.getBoundingClientRect().top + scrollY - 120); }"); pg.wait_for_timeout(200)
+    box = pg.locator('#map').bounding_box(); pg.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2); pg.mouse.wheel(0, -400); pg.wait_for_timeout(200)
+    vb1 = pg.get_attribute('#map', 'viewBox')
+    ok(float(vb1.split()[2]) < float(vb0.split()[2]), '滾輪放大地圖')
+    pg.mouse.move(box['x'] + 200, box['y'] + 200); pg.mouse.down(); pg.mouse.move(box['x'] + 260, box['y'] + 240, steps=5); pg.mouse.up(); pg.wait_for_timeout(100)
+    ok(pg.get_attribute('#map', 'viewBox') != vb1, '拖曳移動地圖')
+    pg.click('.zoombar [data-z=home]'); ok(abs(float(pg.get_attribute('#map', 'viewBox').split()[2]) - float(vb0.split()[2])) < .01, '⟲ 回到全圖')
+    pg.click('[data-bin="4"]'); pg.wait_for_timeout(200)
+    ok(pg.locator('#map path.t.dim').count() > 0, '點圖例只看那一級')
+    pg.click('[data-bin="-1"]'); pg.wait_for_timeout(200); ok(pg.locator('#map path.t.dim').count() == 0, '圖例全部顯示')
+    pg.hover('.rrow >> nth=1'); pg.wait_for_timeout(100)
+    rid = pg.get_attribute('.rrow >> nth=1', 'data-d')
+    ok(pg.locator(f'#map path.hl[data-d="{rid}"]').count() == 1 and pg.locator(f'.dot.hl[data-d="{rid}"]').count() == 1, '滑過排名，地圖與散布圖連動高亮')
+    pg.focus('.rrow >> nth=0'); pg.keyboard.press('ArrowDown'); pg.wait_for_timeout(200)
+    ok(pg.evaluate('() => window._sss.S.sel') == rid, '↓ 鍵切到下一名')
+    pg.click('#detail [data-act=cmpToggle]'); pg.click('.rrow >> nth=0'); pg.click('#detail [data-act=cmpToggle]'); pg.wait_for_timeout(200)
+    ok(pg.is_visible('#cmpTray') and len(pg.evaluate('() => window._sss.S.cmp')) == 2, '加入比較 2 區')
+    pg.click('[data-act=cmpOpen]'); ok(pg.locator('#modalBox svg polygon[style*="fill-opacity"]').count() == 2, '比較雷達 2 區'); pg.click('#modalBox [data-act=close]')
+    pg.fill('#nlText', '新竹開親子髮廊 預算6萬 要好停車'); pg.click('[data-act=nlParse]'); pg.wait_for_timeout(200)
+    c = pg.evaluate('() => window._sss.S.ctx')
+    ok(c['type'] == 'beauty' and c['targets'] == ['family'] and c['budget'] == 6 and c['parking'] and '新竹縣' in c['cities'], '一句話設定（規則）')
+    pg.click('[data-tab=sites]'); n0 = pg.locator('.site').count(); pg.click('.site [data-act=delSite] >> nth=0'); pg.wait_for_timeout(200)
+    ok(pg.locator('.site').count() == n0 - 1, '刪除店面'); pg.click('.toast .tbtn'); pg.wait_for_timeout(200)
+    ok(pg.locator('.site').count() == n0, '↶ 復原刪除')
+    # ---------- 最小統計區 ----------
+    pg.click('[data-tab=vill]'); pg.wait_for_timeout(800); pg.click('[data-vlevel=stat]'); pg.wait_for_selector('#vdetail', timeout=30000)
+    nst = pg.locator('#vmap path.t[data-v]').count()
+    ok(nst > 100 and pg.locator('.vlines path').count() > 0, f'最小統計區地圖 {nst} 塊＋村里界')
+    sid = pg.get_attribute('#vmap path.t[data-v] >> nth=50', 'data-v')
+    pg.evaluate(f"() => window.SSS_APP.setVSel('{sid}', window.SSS_APP.vDist())"); pg.wait_for_timeout(200)
+    ok(sid in pg.inner_text('#vdetail'), '統計區卡顯示代碼')
+    pg.click('#vdetail [data-act=addSiteVill]'); pg.wait_for_timeout(300)
+    ok(pg.evaluate('() => window._sss.S.sites.slice(-1)[0].stat') == sid, '在統計區新增候選店面')
+    pg.click('[data-tab=vill]'); pg.wait_for_timeout(300)
+    for k in ['dens', 'young', 'old', 'st', 'biz', 'same', 'inc', 'score']:
+        pg.click(f'[data-vlayer={k}]')
+    ok(not errs, '統計區圖層無錯誤')
+    pg.click('[data-vlevel=village]'); pg.wait_for_timeout(300)
+    # ---------- AI（模擬 Gemini） ----------
+    pg.evaluate(MOCK)
+    pg.click('[data-tab=area]'); pg.fill('#nlText', '想在大溪老街開觀光客選物店，租金四萬'); pg.click('[data-act=aiParse]'); pg.wait_for_timeout(500)
+    c = pg.evaluate('() => window._sss.S.ctx'); rq = pg.evaluate('() => window.__req[0]')
+    ok(c['type'] == 'retail' and c['cities'] == ['桃園市'] and pg.evaluate('() => window._sss.S.sel') == '桃園市大溪區', 'AI 一句話設定套用')
+    ok(rq['headers'].get('x-goog-api-key') == 'TEST-KEY-123' and 'TEST-KEY' not in rq['url'] and 'responseMimeType' in rq['body'], 'AI 金鑰放 header、不放網址、JSON 模式')
+    pg.click('#detail [data-act=aiDist]'); pg.wait_for_selector('.aiout'); ok('適合' in pg.inner_text('.aiout') and pg.locator('.aiout ul li').count() >= 2, 'AI 解讀行政區顯示結果')
+    ok('不得編造' in pg.evaluate('() => window.__req.slice(-1)[0].body'), 'AI 提示詞含不得編造規則')
+    pg.click('#modalBox [data-act=close]'); pg.click('[data-tab=sites]')
+    pg.click('.site [data-act=aiPhoto] >> nth=0'); pg.set_input_files('#aiPhotoFile', os.path.join(ROOT, 'icons', 'icon-192.png')); pg.click('[data-ai=sendPhoto]')
+    pg.wait_for_selector('[data-ai=applyPhoto]'); pg.click('[data-ai=applyPhoto]'); pg.wait_for_timeout(200)
+    s0 = pg.evaluate('() => window._sss.S.sites[0]'); ok(s0['vis'] == 4 and s0['front'] == 6.5 and s0['cond'] == 'ready', 'AI 看店面照片並套用')
+    pg.evaluate("() => localStorage.removeItem('sss.ai')")
+    pg.click('[data-act=aiSites]'); pg.wait_for_selector('#modalBox textarea'); ok('複製提示詞' in pg.inner_text('#modalBox'), '沒有金鑰改成複製提示詞'); pg.click('#modalBox [data-act=close]')
+    # ---------- 列印浮水印 ----------
+    pg.evaluate("() => window.dispatchEvent(new Event('beforeprint'))")
+    ok(pg.locator('#printArea #pdfReport').count() == 1, '列印時自動放入報告')
+    pg.emulate_media(media='print'); pdfb = pg.pdf(format='A4', print_background=True); pg.emulate_media(media='screen')
+    open(os.path.join(ROOT, 'tools', 'raw', 'e2e_print.pdf'), 'wb').write(pdfb)
+    import fitz
+    doc = fitz.open(stream=pdfb, filetype='pdf')
+    for i in range(min(2, doc.page_count)): doc[i].get_pixmap(dpi=50).save(os.path.join(ROOT, 'tools', 'raw', f'e2e_print_p{i + 1}.png'))
+    ok(all(len(doc[i].get_images()) >= 1 for i in range(doc.page_count)), f'列印 PDF {doc.page_count} 頁，每頁都有浮水印圖')
     pg.click('[data-act=leaveDemo]')
     # 手機寬度
     m = b.new_page(viewport={'width': 400, 'height': 820})

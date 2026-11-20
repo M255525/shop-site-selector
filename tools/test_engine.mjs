@@ -99,5 +99,37 @@ const da = VV['臺北市'].list.filter(v => v.d === '臺北市大安區');
 const rr = D.scoreVillages(da, { type: 'food', targets: ['student'] });
 ok(rr.find(x => x.v.n === '大學里').total > rr[rr.length - 1].total, '大學里不是最後');
 ok(D.explainVillage(rr[0], { type: 'food' }).good.length > 0, '村里說明');
+// 一句話設定（規則式）
+const PT = [
+  ['我想在台北大安區開手搖飲，客人是學生跟上班族，月租預算 12 萬，最好靠近捷運', { type: 'food', targets: ['student', 'worker'], cities: ['臺北市'], focus: '臺北市大安區', budget: 12, transit: true }],
+  ['新北市板橋的社區早午餐，家庭客，房租8萬以內', { type: 'food', targets: ['family'], cities: ['新北市'], focus: '新北市板橋區', budget: 8 }],
+  ['新竹開親子髮廊 預算6萬 要好停車', { type: 'beauty', targets: ['family'], cities: ['新竹市', '新竹縣'], budget: 6, parking: true }],
+  ['桃園夜市小吃攤，晚上營業', { type: 'stall', cities: ['桃園市'], night: true }],
+  ['中壢的服飾店 租金 50000 元', { type: 'retail', focus: '桃園市中壢區', cities: ['桃園市'], budget: 5 }],
+  ['新竹北區小吃', { type: 'food', focus: '新竹市北區', cities: ['新竹市'] }],
+  ['台北市中山區酒吧', { type: 'food', focus: '臺北市中山區', cities: ['臺北市'] }]
+];
+for (const [t, want] of PT) { const got = D.parseText(t).ctx; ok(JSON.stringify(Object.keys(want).sort().map(k => [k, got[k]])) === JSON.stringify(Object.keys(want).sort().map(k => [k, want[k]])), '一句話：' + t + ' → ' + JSON.stringify(got)); }
+ok(Object.keys(D.parseText('今天天氣很好').ctx).length === 0, '無關句子不設定');
+ok(D.parseText('x'.repeat(5000)).found.length === 0, '超長輸入不爆');
+
+// 最小統計區
+const fs = require('fs');
+for (const f of fs.readdirSync(new URL('../stat/', import.meta.url))) require('../stat/' + f);
+const SS = window.SSS_STAT;
+ok(Object.keys(SS).length === 70, '70 區都有最小統計區檔');
+let nUnits = 0;
+for (const d of L) {
+  const sd = SS[d.id]; const us = sd.list.filter(u => !u.u); nUnits += sd.list.length;
+  us.forEach(u => { u.d = d.id; });
+  const p = us.reduce((a, u) => a + u.pop, 0);
+  ok(Math.abs(p / d.pop - 1) < .08, d.id + ' 統計區人口（113-12）與區人口（115-10）差 8% 內：' + (p / d.pop * 100 - 100).toFixed(1) + '%');
+  ok(us.every(u => u.a6.length === 6 && u.vl && u.st[2] >= 0 && u.r3 === 1 && u.p.length > 10), d.id + ' 統計區欄位完整');
+  const r = D.scoreVillages(sd.list, { type: 'food', targets: ['student'] });
+  ok(r.length === us.length && r.every(x => x.total >= 0 && x.total <= 100), d.id + ' 統計區分數');
+}
+ok(nUnits === 49424, '四縣市最小統計區 49,424 塊：' + nUnits);
+ok(D.tShare({ pop: 100, a6: [10, 20, 30, 40, 0, 0] }, 'worker') === .7 && D.tShare({ pop: 100, age: [10, 20, 30, 20, 20] }, 'senior') === .2, '年齡分組對應');
+ok(Math.abs(D.vPoiDens({ poi: [1, 0, 0, 0, 0], r3: 1 }) - 1 / (Math.PI * .09)) < 1e-9, '300m 半徑店家密度');
 console.log(`${n - fail}/${n} passed, ${combos} 種條件組合`);
 process.exit(fail ? 1 : 0);
