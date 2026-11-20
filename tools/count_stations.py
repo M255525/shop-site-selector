@@ -32,7 +32,7 @@ def where(pt):
             if inside(pt, poly[0]) and not any(inside(pt, h) for h in poly[1:]): return n
     return None
 E = json.load(open('tools/raw/stations.json', encoding='utf-8'))['elements']
-seen = {}; out = {n: {'metro': [], 'rail': [], 'hsr': []} for n in polys}
+seen = {}; out = {n: {'metro': [], 'rail': [], 'hsr': []} for n in polys}; clean = []
 for e in E:
     t = e['tags']; net = t.get('network', ''); st = t.get('station')
     name = t.get('name', '').strip(); name = name if name.endswith('車站') else re.sub(r'站$', '', name)
@@ -45,7 +45,8 @@ for e in E:
     if not d: continue
     key = (k, name, d)
     if key in seen: continue
-    seen[key] = 1; out[d][k].append(name)
+    seen[key] = 1; out[d][k].append(name); clean.append({'n': name, 'k': k, 'lon': e['lon'], 'lat': e['lat'], 'd': d})
+json.dump(clean, open('tools/raw/stations_clean.json', 'w', encoding='utf-8'), ensure_ascii=False)
 json.dump(out, open('tools/raw/stations_by_district.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=0)
 for k in ('metro', 'rail', 'hsr'): print(k, sum(len(v[k]) for v in out.values()))
 for n in ('臺北市大安區', '臺北市中正區', '新北市板橋區', '桃園市中壢區', '新竹縣竹北市', '新竹市東區', '桃園市桃園區'):

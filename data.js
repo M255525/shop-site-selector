@@ -190,6 +190,95 @@ function breaks(vals, k){
 }
 function binOf(v, br){ var i = 0; while(i < br.length && v >= br[i]) i++; return i; }
 
+/* ---------- 街區（村里）：資料在 villages/<縣市>.js，點進來才載入 ----------
+   百分位只在「這次比較的村里」裡算（預設同一個行政區），因為 OSM 店家登錄各縣市完整度差很多 */
+var VCOMPS = [
+  {k:'dens', n:'人潮密度', s:'村里每平方公里人口（戶籍）'},
+  {k:'fit',  n:'客群吻合', s:'目標客群的人口比例'},
+  {k:'inc',  n:'消費力', s:'村里綜合所得中位數'},
+  {k:'trans',n:'離車站', s:'里中心到最近捷運／台鐵／高鐵站的直線距離'},
+  {k:'biz',  n:'商業活躍', s:'OpenStreetMap 登錄的店家密度（含便利商店）'},
+  {k:'comp', n:'同業狀況', s:'OpenStreetMap 登錄的同類店家密度'}
+];
+var VWEIGHTS = {
+  food:   {dens:25, fit:15, inc:10, trans:20, biz:20, comp:10},
+  retail: {dens:20, fit:15, inc:20, trans:20, biz:20, comp:5},
+  online: {dens:0,  fit:10, inc:0,  trans:40, biz:0,  comp:0},
+  beauty: {dens:20, fit:25, inc:20, trans:10, biz:10, comp:15},
+  service:{dens:10, fit:20, inc:25, trans:25, biz:15, comp:5},
+  stall:  {dens:25, fit:15, inc:5,  trans:20, biz:25, comp:10}
+};
+var POI_K = ['food', 'retail', 'beauty', 'service', 'conv'];
+var POI_N = {food:'餐飲', retail:'零售', beauty:'美容美髮', service:'生活服務', conv:'便利商店'};
+var SAME = {food:'food', stall:'food', retail:'retail', beauty:'beauty', service:'service', online:null};
+var ST_K = {metro:'捷運', rail:'台鐵', hsr:'高鐵'};
+function vShare(v, i){ return v.pop ? v.age[i] / v.pop : 0; }
+function vPoi(v){ return v.poi.reduce(function(a, b){ return a + b; }, 0); }
+function vPoiDens(v, k){ var n = k ? v.poi[POI_K.indexOf(k)] : vPoi(v); return v.area > 0 ? n / v.area : 0; }
+function transScore(m){ return clamp((1500 - m) / (1500 - 250) * 100, 0, 100); }
+function scoreVillages(list, ctx){
+  ctx = ctx || {};
+  var L2 = (list || []).filter(function(v){ return !v.u && v.pop > 0; }), type = ctx.type || 'food', same = SAME[type];
+  if(!L2.length) return [];
+  var pd = pctFn(L2.map(function(v){ return v.dens; })), pb = pctFn(L2.map(function(v){ return vPoiDens(v); }));
+  var pi = pctFn(L2.filter(function(v){ return v.inc; }).map(function(v){ return v.inc; }));
+  var ps = [0, 1, 2, 3, 4].map(function(i){ return pctFn(L2.map(function(v){ return vShare(v, i); })); });
+  var pc = same ? pctFn(L2.map(function(v){ return vPoiDens(v, same); })) : null;
+  var base = WEIGHTS && ctx.vweights && typeof ctx.vweights === 'object' ? ctx.vweights : VWEIGHTS[type] || VWEIGHTS.food, w = {}, sw = 0;
+  VCOMPS.forEach(function(c){ var v = +base[c.k]; w[c.k] = isFinite(v) && v >= 0 ? v : 0; });
+  if(ctx.transit) w.trans += 10;
+  if(ctx.night) w.biz += 5;
+  VCOMPS.forEach(function(c){ sw += w[c.k]; });
+  var res = L2.map(function(v){
+    var s = {};
+    s.dens = pd(v.dens);
+    var t = ctx.targets || [];
+    if(!t.length) s.fit = 50;
+    else { var f = 0; t.forEach(function(k){
+      if(k === 'student') f += ps[1](vShare(v, 1));
+      else if(k === 'worker') f += .5 * ps[2](vShare(v, 2)) + .5 * pb(vPoiDens(v));
+      else if(k === 'family') f += ps[0](vShare(v, 0));
+      else if(k === 'senior') f += ps[4](vShare(v, 4));
+      else if(k === 'tourist') f += pb(vPoiDens(v));
+    }); s.fit = f / t.length; }
+    s.inc = v.inc ? pi(v.inc) : 50;
+    s.trans = transScore(v.st[2]);
+    if(ctx.parking) s.trans = .6 * s.trans + .4 * (100 - s.dens);
+    s.biz = pb(vPoiDens(v));
+    if(!pc) s.comp = 50;
+    else { var p = pc(vPoiDens(v, same)); s.comp = type === 'food' || type === 'stall' ? (p > 90 ? 80 : p) : 100 - p; }
+    var parts = {}, tot = 0;
+    VCOMPS.forEach(function(c){ parts[c.k] = sw ? s[c.k] * w[c.k] / sw : 0; tot += parts[c.k]; });
+    return {id:v.id, v:v, total:r1(tot), s:s, parts:parts, w:w};
+  });
+  res.sort(function(a, b){ return b.total - a.total || b.v.pop - a.v.pop; });
+  res.forEach(function(r, i){ r.rank = i + 1; });
+  return res;
+}
+function explainVillage(r, ctx){
+  ctx = ctx || {};
+  var v = r.v, s = r.s, good = [], warn = [], same = SAME[ctx.type || 'food'];
+  var st = v.st[2] <= 400 ? '走路約 ' + Math.max(1, Math.round(v.st[2] / 80)) + ' 分鐘' : '約 ' + (v.st[2] >= 1000 ? (v.st[2] / 1000).toFixed(1) + ' 公里' : v.st[2] + ' 公尺');
+  if(s.trans >= 75) good.push('離' + ST_K[v.st[1]] + '「' + v.st[0] + '」站' + st + (v.s5 > 1 ? '，500 公尺內有 ' + v.s5 + ' 站' : ''));
+  if(s.dens >= 75) good.push('人口密集（每平方公里約 ' + v.dens.toLocaleString() + ' 人）');
+  if(s.inc >= 75 && v.inc) good.push('所得中位數較高（' + v.inc + ' 千元）');
+  if(s.biz >= 75) good.push('店家多、街上比較熱鬧（OSM 登錄 ' + vPoi(v) + ' 家）');
+  if(s.fit >= 75 && ctx.targets && ctx.targets.length) good.push('目標客群比例較高');
+  if(same && (ctx.type === 'food' || ctx.type === 'stall') && s.comp >= 70) good.push('同類店家聚集，有美食聚落效果（OSM 登錄餐飲 ' + v.poi[0] + ' 家）');
+  if(s.trans < 25) warn.push('離最近車站「' + v.st[0] + '」' + st + '，客人多半騎車開車');
+  if(s.dens < 25) warn.push('人口較稀，路過人潮少');
+  if(same && ctx.type !== 'food' && ctx.type !== 'stall' && s.comp < 30) warn.push('同類店家多（OSM 登錄' + POI_N[same] + ' ' + v.poi[POI_K.indexOf(same)] + ' 家），要想清楚差異化');
+  if(!v.inc) warn.push('沒有所得資料（可能是新設或調整過的里），消費力先以中間值計算');
+  if(vShare(v, 4) > .28) warn.push('65 歲以上占 ' + Math.round(vShare(v, 4) * 100) + '%');
+  return {good:good.slice(0, 4), warn:warn.slice(0, 3)};
+}
+var VLAYERS = {
+  score:{n:'街區適合度'}, dens:{n:'人口密度', v:function(v){ return v.dens; }}, inc:{n:'所得中位數', v:function(v){ return v.inc; }},
+  young:{n:'15–44 歲比例', v:function(v){ return r1((vShare(v, 1) + vShare(v, 2)) * 100); }}, kids:{n:'0–14 歲比例', v:function(v){ return r1(vShare(v, 0) * 100); }},
+  old:{n:'65 歲以上比例', v:function(v){ return r1(vShare(v, 4) * 100); }}, st:{n:'離車站距離', v:function(v){ return v.st[2]; }, rev:true},
+  biz:{n:'店家數（OSM）', v:function(v){ return vPoi(v); }}, same:{n:'同類店家（OSM）', v:null}
+};
+
 /* ---------- 第二層：候選店面 ---------- */
 var FLOORS = {'1':'一樓臨街', '1in':'一樓（巷內／騎樓後）', '2':'二樓以上', 'b1':'地下室'};
 var CONDS = {ready:'可直接沿用', light:'小改裝', heavy:'要大改／毛胚'};
@@ -322,7 +411,10 @@ var API = {
   share:share, stations:stations, stationText:stationText, scoreDistrict:scoreDistrict, rankDistricts:rankDistricts, explain:explain,
   weightsFor:weightsFor, rentScore:rentScore, fitScore:fitScore, breaks:breaks, binOf:binOf,
   footTraffic:footTraffic, perHour:perHour, estRevenue:estRevenue, revenueOf:revenueOf, rentRatio:rentRatio, ratioLevel:ratioLevel, scoreSite:scoreSite,
-  clamp:clamp, r1:r1
+  clamp:clamp, r1:r1,
+  VCOMPS:VCOMPS, VWEIGHTS:VWEIGHTS, VLAYERS:VLAYERS, POI_K:POI_K, POI_N:POI_N, SAME:SAME, ST_K:ST_K,
+  CITY_SLUG:{'臺北市':'tpe', '新北市':'ntpc', '桃園市':'tyc', '新竹市':'hsc', '新竹縣':'hsq'},
+  scoreVillages:scoreVillages, explainVillage:explainVillage, vShare:vShare, vPoi:vPoi, vPoiDens:vPoiDens, transScore:transScore
 };
 if(typeof module !== 'undefined') module.exports = API; else root.SSS = API;
 })(typeof window !== 'undefined' ? window : this);

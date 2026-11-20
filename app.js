@@ -14,7 +14,7 @@ function today(){ var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.g
 var standalone = window.matchMedia && matchMedia('(display-mode: standalone)').matches || navigator.standalone;
 var SC = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)', 'var(--s5)', 'var(--s6)', 'var(--s7)'];
 var Q = ['var(--q0)', 'var(--q1)', 'var(--q2)', 'var(--q3)', 'var(--q4)'];
-var MAXSITES = 5;
+var MAXSITES = 5, VER = '20261120b';
 
 /* ---------- 狀態 ---------- */
 function defCtx(){ return {name:'', type:'food', targets:[], cities:[], budget:0, transit:false, parking:false, night:false, weights:null, rentOverride:{}}; }
@@ -36,6 +36,7 @@ function newId(){ return 's' + Date.now().toString(36) + (sid++).toString(36); }
 function cleanSite(s){
   var o = {id:typeof s.id === 'string' && /^[\w-]{1,30}$/.test(s.id) ? s.id : newId(), name:typeof s.name === 'string' ? s.name.slice(0, 30) : '候選店面'};
   o.district = D.byId(s.district) ? s.district : '';
+  o.village = o.district && typeof s.village === 'string' && /^\w{8,12}$/.test(s.village) ? s.village : '';
   for(var k in NUMF){ var v = +s[k]; if(s[k] !== '' && s[k] !== undefined && s[k] !== null && isFinite(v)) o[k] = Math.max(NUMF[k][0], Math.min(NUMF[k][1], v)); }
   o.floor = D.FLOORS[s.floor] ? s.floor : '1';
   o.cond = D.CONDS[s.cond] ? s.cond : 'light';
@@ -53,7 +54,8 @@ function cleanSession(x, ids){
 }
 function cleanState(d){
   d = d && typeof d === 'object' ? d : {};
-  var o = {ctx:cleanCtx(d.ctx), sel:D.byId(d.sel) ? d.sel : '', layer:D.LAYERS[d.layer] ? d.layer : 'score', sites:[], sessions:[]};
+  var o = {ctx:cleanCtx(d.ctx), sel:D.byId(d.sel) ? d.sel : '', layer:D.LAYERS[d.layer] ? d.layer : 'score', sites:[], sessions:[],
+    vdist:D.byId(d.vdist) ? d.vdist : '', vlayer:D.VLAYERS[d.vlayer] ? d.vlayer : 'score', vsel:typeof d.vsel === 'string' && /^\w{8,12}$/.test(d.vsel) ? d.vsel : '', vscope:d.vscope === 'range' ? 'range' : 'dist'};
   if(Array.isArray(d.sites)) o.sites = d.sites.slice(0, MAXSITES).map(cleanSite);
   var ids = o.sites.map(function(s){ return s.id; });
   if(Array.isArray(d.sessions)) o.sessions = d.sessions.map(function(x){ return cleanSession(x, ids); }).filter(Boolean).slice(-300);
@@ -61,8 +63,8 @@ function cleanState(d){
 }
 function load(){ return cleanState(lsJson('state', null)); }
 var S = load(), saved = null, demo = false;
-var V = {tab:lsGet('tab') || 'area', radar:null, chkSite:null, cnt:null, sortK:'rank', sortDir:1, showAll:false, demoKey:''};
-if(['area', 'sites', 'count', 'check'].indexOf(V.tab) < 0) V.tab = 'area';
+var V = {tab:lsGet('tab') || 'area', radar:null, chkSite:null, cnt:null, sortK:'rank', sortDir:1, showAll:false, demoKey:'', vsortK:'rank', vsortDir:1, vAll:false};
+if(['area', 'vill', 'sites', 'count', 'check'].indexOf(V.tab) < 0) V.tab = 'area';
 function save(){ if(demo) return; lsSet('state', JSON.stringify(S)); }
 
 /* ---------- 共用 ---------- */
@@ -82,7 +84,7 @@ function rankOf(id){ var r = R(); for(var i = 0; i < r.length; i++) if(r[i].id =
 function trafficOf(site){ var ft = D.footTraffic(S.sessions, site.id); return ft; }
 
 /* ---------- 標頭與分頁 ---------- */
-var TABS = [['area', '01', '🗺 找區域'], ['sites', '02', '🏪 比店面'], ['count', '03', '👣 人流計數'], ['check', '04', '✅ 看店清單']];
+var TABS = [['area', '01', '🗺 找區域'], ['vill', '02', '🏘 街區'], ['sites', '03', '🏪 比店面'], ['count', '04', '👣 人流計數'], ['check', '05', '✅ 看店清單']];
 function renderChrome(){
   $('tbName').textContent = S.ctx.name || '我的店';
   $('tbType').textContent = D.TYPES[S.ctx.type].n;
@@ -93,7 +95,7 @@ function renderChrome(){
   $('exStrip').innerHTML = (demo ? '<b>範例模式</b>：資料不會存下來。' : '<span>看範例：</span>') +
     D.EXAMPLES.map(function(e){ return '<button data-demo="' + e.key + '" class="' + (V.demoKey === e.key && demo ? 'cur' : '') + '">' + esc(e.label) + '</button>'; }).join('') +
     (demo ? '<button data-act="leaveDemo">離開範例</button>' : '');
-  $('foot').innerHTML = '人口：內政部戶政司（民國 ' + D.DIST.meta.popYm.slice(0, 3) + ' 年 ' + (+D.DIST.meta.popYm.slice(3)) + ' 月）・所得：財政部財政資訊中心 ' + D.DIST.meta.incYear + ' 年度綜稅所得・界線：內政部國土測繪中心・車站位置：© OpenStreetMap contributors<br>' +
+  $('foot').innerHTML = '人口：內政部戶政司（民國 ' + D.DIST.meta.popYm.slice(0, 3) + ' 年 ' + (+D.DIST.meta.popYm.slice(3)) + ' 月）・所得：財政部財政資訊中心 ' + D.DIST.meta.incYear + ' 年度綜稅所得・鄉鎮與村里界線：內政部國土測繪中心・車站與店家位置：© OpenStreetMap contributors<br>' +
     '👤 創作者 Mark Tsai（蔡豐全）・<a href="manual.html">📖 操作手冊</a>・<a href="#" data-act="warn">⚠ 使用警語</a>' + (standalone ? '' : '・<a href="#" data-act="install">📲 加入主畫面</a>') +
     '<br><img src="https://visitor-badge.laobi.icu/badge?page_id=m255525.shopsiteselector" alt="訪客次數" height="20" loading="lazy" style="vertical-align:middle;margin-top:.4rem">';
 }
@@ -101,11 +103,34 @@ function render(){
   renderChrome();
   var m = $('main');
   if(V.tab === 'area') m.innerHTML = areaHtml();
-  else if(V.tab === 'sites') m.innerHTML = sitesHtml();
+  else if(V.tab === 'vill') m.innerHTML = villHtml();
+  else if(V.tab === 'sites'){ m.innerHTML = sitesHtml(); needVillages(S.sites.map(function(x){ return x.district; })); }
   else if(V.tab === 'count') m.innerHTML = countHtml();
   else m.innerHTML = checkHtml();
   if(V.tab === 'area') fitMap();
 }
+/* ---------- 村里資料：每縣市一檔，用到才載入 ---------- */
+var VLOAD = {};
+function vData(city){ return window.SSS_VILL && window.SSS_VILL[city]; }
+function loadCity(city){
+  if(vData(city)) return Promise.resolve();
+  if(VLOAD[city]) return VLOAD[city];
+  VLOAD[city] = new Promise(function(ok, no){
+    var sc = document.createElement('script'); sc.src = 'villages/' + D.CITY_SLUG[city] + '.js?v=' + VER;
+    sc.onload = ok; sc.onerror = function(){ delete VLOAD[city]; sc.remove(); no(); }; document.head.appendChild(sc);
+  });
+  return VLOAD[city];
+}
+var needBusy = {};
+function needVillages(dists){
+  var cs = {}; dists.forEach(function(d){ if(d) cs[d.slice(0, 3)] = 1; });
+  var miss = Object.keys(cs).filter(function(c){ return !vData(c) && !needBusy[c]; });
+  if(!miss.length) return;
+  miss.forEach(function(c){ needBusy[c] = 1; });
+  Promise.all(miss.map(loadCity)).then(function(){ miss.forEach(function(c){ delete needBusy[c]; }); render(); },
+    function(){ miss.forEach(function(c){ delete needBusy[c]; }); toast('村里資料載入失敗，請確認網路後重試'); });
+}
+function villOf(code, dist){ var vd = dist && vData(dist.slice(0, 3)); if(!vd || !code) return null; for(var i = 0; i < vd.list.length; i++) if(vd.list[i].id === code) return vd.list[i]; return null; }
 
 /* ========== 01 找區域 ========== */
 function chip(attr, val, on, label){ return '<button class="chip' + (on ? ' on' : '') + '" ' + attr + '="' + esc(val) + '" aria-pressed="' + !!on + '">' + label + '</button>'; }
@@ -252,7 +277,7 @@ function detailHtml(rows){
     '<div class="agel">' + D.AGE_N.map(function(n, i){ return '<span>' + n + '<br><b class="mono">' + (shares[i] * 100).toFixed(0) + '%</b></span>'; }).join('') + '</div>' +
     '<p class="small" style="margin:10px 0 2px"><b>區域性質（自行整理）</b>　' + d.tags.map(function(t){ return '<span class="tagc">' + D.TAGS[t] + '</span>'; }).join('') + '</p>' +
     '<p class="small" style="margin:4px 0"><b>車站</b>　' + (d.metro.length + d.rail.length + d.hsr.length ? (d.metro.length ? '捷運／輕軌：' + d.metro.map(esc).join('、') + '。' : '') + (d.rail.length ? '台鐵：' + d.rail.map(esc).join('、') + '。' : '') + (d.hsr.length ? '高鐵：' + d.hsr.map(esc).join('、') + '。' : '') : '區內沒有軌道車站') + '</p>' +
-    '<div class="stack"><button class="btn" data-act="addSiteHere" data-d="' + d.id + '">📍 在這區新增候選店面</button></div></div>';
+    '<div class="stack"><button class="btn" data-act="goVill" data-d="' + d.id + '">🏘 看這區的街區（村里）</button><button class="btn alt" data-act="addSiteHere" data-d="' + d.id + '">📍 在這區新增候選店面</button></div></div>';
 }
 function tableHtml(rows){
   var cols = [['rank', '名次'], ['name', '行政區'], ['total', '適合度'], ['pop', '人口'], ['dens', '密度'], ['inc', '所得中位數'], ['kids', '0–14%'], ['young', '15–44%'], ['old', '65+%'], ['st', '車站'], ['rent', '租金級距']];
@@ -270,7 +295,178 @@ function areaHtml(){
     '<div style="margin-top:14px">' + tableHtml(rows) + '</div>';
 }
 
-/* ========== 02 比店面 ========== */
+/* ========== 02 街區（村里） ========== */
+var M_PER_UNIT = 111320 / 973.1125913191273;   // 地圖 1 單位約多少公尺（與 tools/raw/proj.json 的 S 一致）
+function vDist(){ var d = S.vdist || S.sel || (R()[0] && R()[0].id); return D.byId(d) ? d : D.list[0].id; }
+function vScopeList(dist){
+  if(S.vscope === 'range'){
+    var cs = S.ctx.cities.length ? S.ctx.cities : D.CITIES, out = [];
+    cs.forEach(function(c){ var vd = vData(c); if(vd) out = out.concat(vd.list); });
+    return out;
+  }
+  var vd = vData(dist.slice(0, 3)); return vd ? vd.list.filter(function(v){ return v.d === dist; }) : [];
+}
+var vCache = {key:'', rows:null};
+function vRanked(dist){
+  var k = JSON.stringify([S.ctx, S.vscope, dist, S.vscope === 'range' ? Object.keys(window.SSS_VILL || {}) : 0]);
+  if(k !== vCache.key){ vCache.key = k; vCache.rows = D.scoreVillages(vScopeList(dist), S.ctx); }
+  return vCache.rows;
+}
+function vLayerVal(key, v, scoreMap){
+  if(v.u) return null;
+  if(key === 'score') return scoreMap[v.id] !== undefined ? scoreMap[v.id] : null;
+  if(key === 'same'){ var k = D.SAME[S.ctx.type]; return k ? v.poi[D.POI_K.indexOf(k)] : null; }
+  return D.VLAYERS[key].v(v);
+}
+function vFmt(key, v){
+  if(v === null || v === undefined) return '—';
+  if(key === 'young' || key === 'kids' || key === 'old') return v + '%';
+  if(key === 'score') return v + ' 分';
+  if(key === 'st') return v >= 1000 ? (v / 1000).toFixed(1) + ' km' : fmtN(v) + ' m';
+  return fmtN(v);
+}
+var VBOX = {};
+function distBox(list, dist){
+  if(VBOX[dist]) return VBOX[dist];
+  var b = [1e9, 1e9, -1e9, -1e9];
+  list.forEach(function(v){ var n = v.p.match(/-?\d+(\.\d+)?/g); if(!n) return; for(var i = 0; i + 1 < n.length; i += 2){ var x = +n[i], y = +n[i + 1]; if(x < b[0]) b[0] = x; if(y < b[1]) b[1] = y; if(x > b[2]) b[2] = x; if(y > b[3]) b[3] = y; } });
+  return (VBOX[dist] = b);
+}
+function vMapHtml(dist, list, rows){
+  var key = S.vlayer, scoreMap = {}, distRows = rows.filter(function(r){ return r.v.d === dist; });
+  rows.forEach(function(r){ scoreMap[r.id] = r.total; });
+  if(key === 'same' && !D.SAME[S.ctx.type]) key = 'score';
+  var vals = list.map(function(v){ return vLayerVal(key, v, scoreMap); }).filter(function(x){ return x !== null && isFinite(x); });
+  var rev = key === 'st', br = D.breaks(vals.map(function(x){ return rev ? -x : x; }), 5);
+  var b = distBox(list, dist), pad = (b[2] - b[0]) * .04 + .5, vb = [b[0] - pad, b[1] - pad, b[2] - b[0] + pad * 2, b[3] - b[1] + pad * 2], u = vb[2] / 1000;
+  var paths = list.map(function(v){
+    var x = vLayerVal(key, v, scoreMap), fill = x === null || !isFinite(x) ? 'var(--qna)' : Q[D.binOf(rev ? -x : x, br)];
+    return '<path class="t' + (v.u ? ' out' : '') + (S.vsel === v.id ? ' sel' : '') + '" d="' + v.p + '"' + (v.u ? '' : ' data-v="' + v.id + '"') + ' style="fill:' + fill + ';stroke-width:' + (u * 1.1).toFixed(3) + '"></path>';
+  }).join('');
+  var outline = '<path d="' + MAP.towns[dist].d + '" fill="none" style="stroke:var(--ink);stroke-width:' + (u * 3).toFixed(3) + ';pointer-events:none"></path>';
+  var vd = vData(dist.slice(0, 3)), sts = vd.stations.filter(function(s){ return s.xy[0] >= vb[0] && s.xy[0] <= vb[0] + vb[2] && s.xy[1] >= vb[1] && s.xy[1] <= vb[1] + vb[3]; });
+  var r = u * 7, stH = sts.map(function(s){
+    var x = s.xy[0], y = s.xy[1], sh = s.k === 'metro' ? '<circle cx="' + x + '" cy="' + y + '" r="' + r + '"></circle>' : s.k === 'rail' ? '<rect x="' + (x - r) + '" y="' + (y - r) + '" width="' + r * 2 + '" height="' + r * 2 + '"></rect>' : '<path d="M' + x + ',' + (y - r * 1.4) + 'L' + (x + r * 1.4) + ',' + y + 'L' + x + ',' + (y + r * 1.4) + 'L' + (x - r * 1.4) + ',' + y + 'Z"></path>';
+    return '<g class="stn" data-tipv="' + esc(D.ST_K[s.k] + '「' + s.n + '」站') + '">' + sh + '<text x="' + (x + r * 1.4) + '" y="' + (y - r * .9) + '" font-size="' + (u * 13).toFixed(2) + '" stroke-width="' + (u * 3).toFixed(2) + '">' + esc(s.n) + '</text></g>';
+  }).join('');
+  var pins = distRows.slice(0, 10).map(function(rr, i){ var c = rr.v.c; return '<g class="pin" data-v="' + rr.id + '" transform="translate(' + c[0] + ',' + c[1] + ') scale(' + (u * 1.15).toFixed(3) + ')"><circle r="9" stroke-width="1.5"></circle><text font-size="10">' + (i + 1) + '</text></g>'; }).join('');
+  var selV = S.vsel ? list.filter(function(v){ return v.id === S.vsel; })[0] : null;
+  var selL = selV ? '<text class="lbl" x="' + selV.c[0] + '" y="' + (selV.c[1] - u * 16) + '" font-size="' + (u * 16).toFixed(2) + '" stroke-width="' + (u * 4).toFixed(2) + '">' + esc(selV.n) + '</text>' : '';
+  var sbm = [100, 200, 500, 1000, 2000, 5000].filter(function(m){ return m / M_PER_UNIT < vb[2] / 4; }).pop() || 100, sbw = sbm / M_PER_UNIT, sx = vb[0] + vb[2] * .04, sy = vb[1] + vb[3] * .96;
+  var scale = '<g class="scl" style="pointer-events:none"><rect x="' + sx + '" y="' + (sy - u * 5) + '" width="' + sbw + '" height="' + u * 5 + '" style="fill:var(--ink)"></rect><text x="' + sx + '" y="' + (sy - u * 9) + '" font-size="' + (u * 13).toFixed(2) + '" style="fill:var(--ink)">' + (sbm >= 1000 ? sbm / 1000 + ' 公里' : sbm + ' 公尺') + '</text></g>';
+  var lgVals = vals.slice().sort(function(a, b){ return a - b; }), lg;
+  if(!lgVals.length) lg = '';
+  else {
+    var e = rev ? [lgVals[lgVals.length - 1]].concat(br.map(function(x){ return -x; }), [lgVals[0]]) : [lgVals[0]].concat(br, [lgVals[lgVals.length - 1]]);
+    lg = Q.map(function(q, i){ return '<span class="lg"><i class="sw" style="background:' + q + '"></i>' + vFmt(key, e[i]) + '～' + (i === 4 ? vFmt(key, e[5]) : '') + '</span>'; }).join('');
+  }
+  var sameN = D.SAME[S.ctx.type] ? D.POI_N[D.SAME[S.ctx.type]] : '';
+  return '<div class="card"><h2 class="ctitle"><span class="dwg">V-01</span>' + esc(dist) + ' 村里地圖<span class="sub">點一個里看詳細・紅圖釘＝本區前 10 名</span></h2>' +
+    '<div class="mapbar" role="group" aria-label="街區圖層">' + Object.keys(D.VLAYERS).filter(function(k){ return k !== 'same' || sameN; }).map(function(k){ return chip('data-vlayer', k, key === k, k === 'same' ? '同類店家：' + sameN + '（OSM）' : D.VLAYERS[k].n); }).join('') + '</div>' +
+    '<div class="mapwrap"><svg id="vmap" viewBox="' + vb.map(function(x){ return x.toFixed(2); }).join(' ') + '" role="img" aria-label="' + esc(dist) + '村里' + D.VLAYERS[key].n + '地圖">' + paths + outline + stH + pins + selL + scale + '</svg><div class="compass" aria-hidden="true"><b>↑</b>N</div></div>' +
+    '<div class="legend"><b>' + (key === 'same' ? '同類店家' : D.VLAYERS[key].n) + '</b>' + lg + (rev ? '<span class="lg muted">（越深越近）</span>' : '') + '</div>' +
+    '<div class="legend"><span class="lg"><svg width="14" height="14" viewBox="-7 -7 14 14"><circle r="5" class="stnk"></circle></svg>捷運／輕軌</span><span class="lg"><svg width="14" height="14" viewBox="-7 -7 14 14"><rect x="-5" y="-5" width="10" height="10" class="stnk"></rect></svg>台鐵</span><span class="lg"><svg width="14" height="14" viewBox="-7 -7 14 14"><path d="M0,-6L6,0L0,6L-6,0Z" class="stnk"></path></svg>高鐵</span><span class="lg"><i class="sw" style="background:var(--qna)"></i>無資料／未編定村里</span></div>' +
+    '<p class="src">' + vSrc(key) + '</p></div>';
+}
+function vSrc(key){
+  var m = vData(vDist().slice(0, 3)).meta;
+  if(key === 'biz' || key === 'same' || key === 'score') return '店家數來自 OpenStreetMap 志工登錄（' + m.osm + ' 整理），<b>台北市較完整、其他縣市漏登較多</b>，所以分數只在比較範圍內排名。村里界：內政部國土測繪中心（' + m.shp + ' 版）。';
+  if(key === 'inc') return '財政部財政資訊中心 ' + m.incYear + ' 年度綜合所得總額中位數（千元／納稅單位）；之後新設或調整的里沒有資料。';
+  if(key === 'st') return '里的中心點到最近車站的直線距離，實際走路通常更遠；車站位置來自 OpenStreetMap。';
+  return '內政部戶政司村里戶籍人口（民國 ' + m.popYm.slice(0, 3) + ' 年 ' + (+m.popYm.slice(3)) + ' 月）；面積由內政部村里界計算。戶籍人口不等於白天實際在街上的人。';
+}
+function vRankHtml(rows, dist){
+  var list = S.vscope === 'range' ? rows : rows.filter(function(r){ return r.v.d === dist; }), n = V.vAll ? list.length : Math.min(10, list.length);
+  return '<div class="card"><h2 class="ctitle"><span class="dwg">V-02</span>街區適合度排名<span class="sub">' + (S.vscope === 'range' ? '範圍內全部村里' : esc(dist) + ' ' + list.length + ' 個里') + '・6 項疊成</span></h2>' +
+    '<div class="lgd">' + D.VCOMPS.map(function(x, i){ return '<span><i class="sw" style="background:' + SC[i] + '"></i>' + x.n + '</span>'; }).join('') + '</div>' +
+    '<div class="rank">' + list.slice(0, n).map(function(r, i){
+      return '<div class="rrow' + (S.vsel === r.id ? ' sel' : '') + '" data-v="' + r.id + '" data-vd="' + r.v.d + '" tabindex="0" role="button" aria-label="第' + (i + 1) + '名 ' + r.v.n + ' ' + r.total + '分"><span class="no">' + (i + 1) + '</span><span class="nm">' + esc(r.v.n) + '<small>' + (S.vscope === 'range' ? esc(r.v.d) : esc(r.v.st[0]) + ' ' + vFmt('st', r.v.st[2])) + '</small></span><div class="stk">' +
+        D.VCOMPS.map(function(x, ci){ var p = r.parts[x.k]; return p > .05 ? '<span data-vseg="' + ci + '" style="width:' + p + '%;background:' + SC[ci] + '"></span>' : ''; }).join('') + '</div><span class="val">' + r.total + '</span></div>';
+    }).join('') + '</div>' + (list.length > 10 ? '<div class="stack"><button class="btn sm alt" data-act="vToggleAll">' + (V.vAll ? '只看前 10 名' : '看全部 ' + list.length + ' 個里') + '</button></div>' : '') + '</div>';
+}
+function vCardHtml(rows, dist, list){
+  var distRows = rows.filter(function(r){ return r.v.d === dist; });
+  var r = S.vsel ? rows.filter(function(x){ return x.id === S.vsel; })[0] : null;
+  if(!r || r.v.d !== dist) r = distRows[0];
+  if(!r) return '<div class="card pinned"><div class="empty">這區沒有村里資料</div></div>';
+  var v = r.v, ex = D.explainVillage(r, S.ctx), shares = v.age.map(function(x){ return x / v.pop; });
+  var dp = 0, da = [0, 0, 0, 0, 0]; list.forEach(function(x){ if(x.u) return; dp += x.pop; x.age.forEach(function(a, i){ da[i] += a; }); });
+  da = da.map(function(a){ return a / dp; });
+  var mx = Math.max.apply(null, shares.concat(da)), tot = D.vPoi(v);
+  var poiBar = tot ? '<div class="stk" style="height:16px;border-radius:4px;margin:4px 0">' + D.POI_K.map(function(k, i){ var n = v.poi[i]; return n ? '<span data-tipv="' + D.POI_N[k] + ' ' + n + ' 家" style="width:' + n / tot * 100 + '%;background:' + SC[i] + '"></span>' : ''; }).join('') + '</div><div class="lgd" style="margin:0">' + D.POI_K.map(function(k, i){ return '<span><i class="sw" style="background:' + SC[i] + '"></i>' + D.POI_N[k] + ' ' + v.poi[i] + '</span>'; }).join('') + '</div>' : '<p class="small muted">OSM 沒有登錄這個里的店家（不代表真的沒有）。</p>';
+  return '<div class="card pinned" id="vdetail"><div class="dhead"><h3>' + esc(v.n) + '<small>' + esc(v.d) + '・' + (S.vscope === 'range' ? '範圍內' : '本區') + '第 ' + r.rank + ' ／ ' + rows.length + '</small></h3><div class="score"><b>' + r.total + '</b><small>街區適合度</small></div></div>' +
+    '<div class="kpis">' +
+      '<div class="kpi"><b>' + fmtN(v.pop) + '</b><span>人口</span></div>' +
+      '<div class="kpi"><b>' + fmtN(v.dens) + '</b><span>人／km²</span></div>' +
+      '<div class="kpi"><b>' + (v.inc || '—') + '</b><span>所得中位數 千元</span></div>' +
+      '<div class="kpi"><b>' + fmtN(v.hh) + '</b><span>戶數</span></div>' +
+      '<div class="kpi"><b>' + vFmt('st', v.st[2]) + '</b><span>到' + D.ST_K[v.st[1]] + esc(v.st[0]) + '站</span></div>' +
+      '<div class="kpi est"><b>' + tot + '</b><span>店家（OSM 登錄）</span></div></div>' +
+    '<div class="small" style="font-weight:700">評分項目（0～100，和' + (S.vscope === 'range' ? '範圍內' : '同區') + '的里比較）</div><div class="cbars">' + D.VCOMPS.map(function(x, i){ var q = Math.round(r.s[x.k]); return '<div class="cbar" title="' + x.s + '"><span>' + x.n + '</span><div class="tr"><i style="width:' + q + '%;background:' + SC[i] + '"></i></div><span class="v">' + q + '</span></div>'; }).join('') + '</div>' +
+    '<ul class="why">' + ex.good.map(function(t){ return '<li class="g">' + esc(t) + '</li>'; }).join('') + ex.warn.map(function(t){ return '<li class="w">' + esc(t) + '</li>'; }).join('') + '</ul>' +
+    '<div class="small" style="font-weight:700;margin-top:10px">店家組成（OSM 登錄）</div>' + poiBar +
+    '<div class="small" style="font-weight:700;margin-top:10px">年齡結構</div><div class="lgd" style="margin:2px 0 0"><span><i class="sw" style="background:var(--s1)"></i>' + esc(v.n) + '</span><span><i class="sw" style="background:var(--ref)"></i>' + esc(v.d.slice(3)) + '平均</span></div>' +
+    '<div class="ages">' + shares.map(function(x, i){ return '<div class="ag"><i style="height:' + (x / mx * 100) + '%;background:var(--s1)" data-tipv="' + esc(v.n) + ' ' + D.AGE_N[i] + '：' + (x * 100).toFixed(1) + '%"></i><i style="height:' + (da[i] / mx * 100) + '%;background:var(--ref)" data-tipv="' + esc(v.d.slice(3)) + '平均 ' + D.AGE_N[i] + '：' + (da[i] * 100).toFixed(1) + '%"></i></div>'; }).join('') + '</div>' +
+    '<div class="agel">' + D.AGE_N.map(function(nm, i){ return '<span>' + nm + '<br><b class="mono">' + (shares[i] * 100).toFixed(0) + '%</b></span>'; }).join('') + '</div>' +
+    '<div class="stack"><button class="btn" data-act="addSiteVill" data-d="' + v.d + '" data-v="' + v.id + '">📍 在這個里新增候選店面</button></div></div>';
+}
+/* 街區定位圖：x＝離車站距離、y＝人口密度（對數）、圓＝人口 */
+function vScatterHtml(rows, dist){
+  var list = rows.filter(function(r){ return r.v.d === dist; }); if(!list.length) return '';
+  var W = 600, H = 360, ml = 52, mr = 14, mt = 14, mb = 40;
+  var dm = Math.max.apply(null, list.map(function(r){ return r.v.st[2]; })), xmax = dm <= 1000 ? 1000 : dm <= 2000 ? 2000 : 3000, xstep = xmax / (xmax === 1000 ? 5 : 6);
+  var lx = function(m){ return ml + Math.min(m, xmax) / xmax * (W - ml - mr); };
+  var ds = list.map(function(r){ return Math.max(r.v.dens, 1); }), lo = Math.floor(Math.log10(Math.min.apply(null, ds))), hi = Math.ceil(Math.log10(Math.max.apply(null, ds)) + .05);
+  if(hi - lo < 1) hi = lo + 1;
+  var ly = function(v){ return mt + (1 - (Math.log10(Math.max(v, 1)) - lo) / (hi - lo)) * (H - mt - mb); };
+  var yt = []; for(var e = lo; e <= hi; e++){ yt.push(Math.pow(10, e)); if(hi - lo <= 2 && e < hi) yt.push(3 * Math.pow(10, e)); }
+  var top = {}; list.slice(0, 10).forEach(function(r){ top[r.id] = 1; });
+  var g = '';
+  for(var xm = 0; xm <= xmax + 1; xm += xstep) (function(m){ g += '<line class="gl" x1="' + lx(m) + '" x2="' + lx(m) + '" y1="' + mt + '" y2="' + (H - mb) + '"></line><text x="' + lx(m) + '" y="' + (H - mb + 16) + '" text-anchor="middle">' + (m >= xmax && xmax === 3000 ? '3k+' : fmtN(m)) + '</text>'; })(xm);
+  yt.forEach(function(v){ g += '<line class="gl" x1="' + ml + '" x2="' + (W - mr) + '" y1="' + ly(v) + '" y2="' + ly(v) + '"></line><text x="' + (ml - 6) + '" y="' + (ly(v) + 4) + '" text-anchor="end">' + fmtN(v) + '</text>'; });
+  g += '<line class="med" x1="' + lx(800) + '" x2="' + lx(800) + '" y1="' + mt + '" y2="' + (H - mb) + '"></line><text class="q" x="' + (lx(800) + 4) + '" y="' + (mt + 12) + '">步行約 10 分鐘</text>';
+  g += '<text x="' + ((W + ml) / 2) + '" y="' + (H - 6) + '" text-anchor="middle">← 離車站越近　里中心到最近車站（公尺）</text><text x="12" y="' + (H / 2) + '" text-anchor="middle" transform="rotate(-90 12 ' + (H / 2) + ')">人口密度（人／km²，對數）→</text>';
+  list.slice().sort(function(a, b){ return (top[a.id] ? 1 : 0) - (top[b.id] ? 1 : 0) || (a.id === S.vsel) - (b.id === S.vsel); }).forEach(function(r){
+    var rr = Math.max(4, 2 + Math.sqrt(r.v.pop) / 14);
+    g += '<circle class="dot ' + (top[r.id] ? 'top' : 'oth') + (S.vsel === r.id ? ' sel' : '') + '" data-v="' + r.id + '" cx="' + lx(r.v.st[2]).toFixed(1) + '" cy="' + ly(r.v.dens).toFixed(1) + '" r="' + rr.toFixed(1) + '"></circle>';
+  });
+  var lbl = list.slice(0, 5).map(function(r){ return '<text x="' + lx(r.v.st[2]).toFixed(1) + '" y="' + (ly(r.v.dens) - 4 - Math.max(4, 2 + Math.sqrt(r.v.pop) / 14)).toFixed(1) + '" text-anchor="middle" style="font-weight:700;fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:3px">' + esc(r.v.n) + '</text>'; }).join('');
+  return '<div class="card"><h2 class="ctitle"><span class="dwg">V-03</span>街區定位圖<span class="sub">左上＝離站近又人多；圓越大人口越多</span></h2>' +
+    '<div class="lgd"><span><i class="sw" style="background:var(--s1);border-radius:50%"></i>本區前 10 名</span><span><i class="sw" style="background:var(--ref);border-radius:50%"></i>其他里</span><span><i class="sw" style="border:2px solid var(--pin);border-radius:50%"></i>目前選的里</span></div>' +
+    '<svg class="svgchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="離車站距離與人口密度散布圖">' + g + lbl + '</svg>' +
+    '<p class="src">直線距離，實際走路通常多 2～4 成。戶籍人口密度高代表住的人多，不一定代表白天逛街的人多。</p></div>';
+}
+function vTableHtml(rows, dist){
+  var list = rows.filter(function(r){ return S.vscope === 'range' || r.v.d === dist; }), same = D.SAME[S.ctx.type];
+  var cols = [['rank', '名次'], ['name', '里'], ['total', '適合度'], ['pop', '人口'], ['dens', '密度'], ['inc', '所得中位數'], ['st', '離車站 m'], ['biz', '店家(OSM)']].concat(same ? [['same', D.POI_N[same] + '(OSM)']] : []).concat([['old', '65+%']]);
+  var get = function(r, k){ var v = r.v; return k === 'rank' ? r.rank : k === 'name' ? v.d + v.n : k === 'total' ? r.total : k === 'st' ? v.st[2] : k === 'biz' ? D.vPoi(v) : k === 'same' ? v.poi[D.POI_K.indexOf(same)] : k === 'old' ? D.vShare(v, 4) : k === 'inc' ? (v.inc || 0) : v[k]; };
+  list = list.slice().sort(function(a, b){ var x = get(a, V.vsortK), y = get(b, V.vsortK); return (x < y ? -1 : x > y ? 1 : 0) * V.vsortDir; });
+  return '<details class="card" id="vtblD"' + (lsGet('vtblOpen') ? ' open' : '') + '><summary class="ctitle" style="cursor:pointer;margin:0"><span class="dwg">V-04</span>村里數據表<span class="sub">' + list.length + ' 個里・點欄位排序</span></summary><div class="tblw" style="margin-top:10px;max-height:460px"><table class="t"><thead><tr>' +
+    cols.map(function(c){ return '<th data-vsort="' + c[0] + '">' + c[1] + (V.vsortK === c[0] ? (V.vsortDir > 0 ? ' ▲' : ' ▼') : '') + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    list.map(function(r){ var v = r.v; return '<tr data-v="' + r.id + '" data-vd="' + v.d + '" class="' + (S.vsel === r.id ? 'sel' : '') + '"><td>' + r.rank + '</td><td class="tx">' + (S.vscope === 'range' ? esc(v.d.slice(3)) : '') + esc(v.n) + '</td><td>' + r.total + '</td><td>' + fmtN(v.pop) + '</td><td>' + fmtN(v.dens) + '</td><td>' + (v.inc || '—') + '</td><td>' + fmtN(v.st[2]) + '</td><td>' + D.vPoi(v) + '</td>' + (same ? '<td>' + v.poi[D.POI_K.indexOf(same)] + '</td>' : '') + '<td>' + (D.vShare(v, 4) * 100).toFixed(1) + '</td></tr>'; }).join('') +
+    '</tbody></table></div></details>';
+}
+function villHtml(){
+  var dist = vDist(), city = dist.slice(0, 3), c = S.ctx;
+  var opts = D.CITIES.map(function(cy){ return '<optgroup label="' + cy + '">' + D.list.filter(function(d){ return d.city === cy; }).map(function(d){ var r = rankOf(d.id); return '<option value="' + d.id + '"' + (d.id === dist ? ' selected' : '') + '>' + d.name + (r ? '（區排名 ' + r.rank + '）' : '') + '</option>'; }).join('') + '</optgroup>'; }).join('');
+  var head = '<div class="cond" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">' +
+    '<div class="fld"><label for="vdist">行政區</label><select id="vdist" data-vdist="1">' + opts + '</select></div>' +
+    '<div class="fld"><span class="lab">排名範圍</span><div class="chips">' + chip('data-vscope', 'dist', S.vscope !== 'range', '只比這一區') + chip('data-vscope', 'range', S.vscope === 'range', '範圍內全部村里') + '</div></div>' +
+    '<div class="fld"><span class="lab">條件（在「🗺 找區域」修改）</span><div class="small">' + D.TYPES[c.type].ic + ' ' + D.TYPES[c.type].n + '・' + (c.targets.length ? c.targets.map(function(t){ return D.TARGETS[t].n; }).join('、') : '未指定客群') + (c.transit ? '・要靠近車站' : '') + (c.parking ? '・開車騎車' : '') + (c.night ? '・晚上營業' : '') + '</div></div></div>';
+  var need = S.vscope === 'range' ? (c.cities.length ? c.cities : D.CITIES) : [city];
+  var miss = need.filter(function(cy){ return !vData(cy); });
+  if(miss.length){
+    if(miss.some(function(cy){ return !needBusy[cy]; })) setTimeout(function(){ needVillages(miss.map(function(cy){ return cy + 'x'; })); }, 0);
+    return head + '<div class="empty">正在載入' + miss.join('、') + '的村里資料…（第一次需要網路，之後離線也能看）</div>';
+  }
+  var list = vData(city).list.filter(function(v){ return v.d === dist; }), rows = vRanked(dist);
+  return head + (c.type === 'online' ? '<p class="small" style="margin:0 0 10px">📦 網路商店主要看倉儲租金與物流，街區分數只參考交通與住宅比例。</p>' : '') +
+    '<div class="grid g-area">' + vMapHtml(dist, list, rows) + vCardHtml(rows, dist, list) + '</div>' +
+    '<div class="grid g-2" style="margin-top:14px">' + vRankHtml(rows, dist) + vScatterHtml(rows, dist) + '</div>' +
+    '<div style="margin-top:14px">' + vTableHtml(rows, dist) + '</div>';
+}
+
+/* ========== 03 比店面 ========== */
 function numIn(s, k, label, unit, step, ph){
   return '<div class="fld"><label>' + label + '</label><div class="inrow"><input type="number" min="0" step="' + (step || 1) + '" data-sk="' + k + '" data-sid="' + s.id + '" value="' + (s[k] !== undefined ? s[k] : '') + '" placeholder="' + (ph || '') + '"><span class="unit">' + unit + '</span></div></div>';
 }
@@ -283,6 +479,7 @@ function siteCard(s, i){
   return '<div class="site" style="--c:' + siteColor(i) + '" data-site="' + s.id + '"><div class="shd"><input type="text" data-sk="name" data-sid="' + s.id + '" value="' + esc(s.name) + '" aria-label="店面名稱"><span class="sc" id="sc_' + s.id + '">' + sc.total + '</span></div>' +
     '<div class="sf">' +
       '<div class="w2">' + selIn(s, 'district', '所在行政區', dOpts) + '</div>' +
+      villSel(s) +
       numIn(s, 'rent', '月租', '萬元', .1) + numIn(s, 'ping', '坪數', '坪', .5) +
       numIn(s, 'front', '店面寬', '公尺', .5) + selIn(s, 'floor', '樓層位置', D.FLOORS) +
       numIn(s, 'walk', '走到捷運／公車站', '分鐘', 1) + selIn(s, 'park', '停車', D.PARKS) +
@@ -298,6 +495,18 @@ function siteCard(s, i){
     '<p class="small" id="rv_' + s.id + '" style="margin:6px 0 0">' + revLine(sc) + '</p>' +
     (sc.notes.length ? '<ul class="notes" id="nt_' + s.id + '">' + sc.notes.map(function(n){ return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '<ul class="notes" id="nt_' + s.id + '"></ul>') +
     '<div class="stack"><button class="btn sm alt" data-act="toChecklist" data-sid="' + s.id + '">➜ 帶到開店前置清單</button><button class="btn sm alt" data-act="delSite" data-sid="' + s.id + '">刪除</button></div></div>';
+}
+function villSel(s){
+  if(!s.district) return '';
+  var vd = vData(s.district.slice(0, 3));
+  if(!vd) return '<div class="fld w2"><label>所在里</label><span class="small muted">載入村里資料中…</span></div>';
+  var o = '<option value="">（不指定）</option>' + vd.list.filter(function(v){ return v.d === s.district && !v.u; }).map(function(v){ return '<option value="' + v.id + '"' + (s.village === v.id ? ' selected' : '') + '>' + esc(v.n) + '</option>'; }).join('');
+  return '<div class="fld w2"><label>所在里</label><select data-sk="village" data-sid="' + s.id + '">' + o + '</select></div>';
+}
+function villScore(s){
+  var v = villOf(s.village, s.district); if(!v) return null;
+  var r = D.scoreVillages(vData(s.district.slice(0, 3)).list.filter(function(x){ return x.d === s.district; }), S.ctx).filter(function(x){ return x.id === v.id; })[0];
+  return r || null;
 }
 function revLine(sc){ return sc.revenue > 0 ? '預估月營業額 <b class="mono">' + sc.revenue + '</b> 萬・租金占 <b class="mono">' + (sc.ratio === null ? '—' : sc.ratio + '%') + '</b>' : '<span class="muted">還沒有營業額預估</span>'; }
 function compareHtml(){
@@ -321,6 +530,8 @@ function compareHtml(){
     return '<div class="ratio" style="--c:' + siteColor(i) + '"><span class="nm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(s.name) + '</span><div class="trk" aria-hidden="true">' + (p !== null ? '<i style="width:' + Math.min(p, 25) / 25 * 100 + '%"></i>' : '') + '<em style="left:40%"></em><em style="left:60%"></em></div><span class="mono">' + (p === null ? '—' : p + '%') + ' <span class="lv ' + sc.level + '">' + ic + lab + '</span></span></div>'; }).join('');
   // 對照表
   var rowsT = [['所在區', function(s){ return s.district ? esc(s.district.slice(3)) : '—'; }], ['區域適合度', function(s){ var r = s.district ? D.scoreDistrict(D.byId(s.district), S.ctx) : null; return r ? r.total : '—'; }],
+    ['所在里', function(s){ var v = villOf(s.village, s.district); return v ? esc(v.n) : '—'; }], ['街區適合度（同區比較）', function(s){ var r = villScore(s); return r ? r.total + '（第 ' + r.rank + ' 名）' : '—'; }],
+    ['里中心離車站', function(s){ var v = villOf(s.village, s.district); return v ? esc(v.st[0]) + ' ' + vFmt('st', v.st[2]) : '—'; }],
     ['月租（萬）', function(s){ return s.rent !== undefined ? s.rent : '—'; }], ['每坪租金（元）', function(s){ return s.rent > 0 && s.ping > 0 ? fmtN(s.rent * 10000 / s.ping) : '—'; }],
     ['人流（人／時）', function(s){ return s.traffic !== undefined ? fmtN(s.traffic) : '—'; }], ['預估月營業額（萬）', function(s, sc){ return sc.revenue || '—'; }], ['租金占比', function(s, sc){ return sc.ratio === null ? '—' : sc.ratio + '%'; }]]
     .concat(D.SITE_COMPS.map(function(x){ return [x.n, function(s, sc){ return Math.round(sc.s[x.k]); }]; })).concat([['總分', function(s, sc){ return '<b>' + sc.total + '</b>'; }]]);
@@ -416,6 +627,11 @@ function csvCell(v){ v = String(v === undefined || v === null ? '' : v); return 
 function csvText(){
   var rows = [['名次', '縣市', '行政區', '適合度'].concat(D.COMPS.map(function(c){ return c.n; }), ['人口', '戶數', '人口密度(概略)', '所得中位數(千元)', '0-14歲%', '15-24歲%', '25-44歲%', '45-64歲%', '65歲以上%', '捷運輕軌站', '台鐵站', '高鐵站', '租金級距(自估)', '區域性質(自行整理)'])];
   R().forEach(function(r){ var d = r.d; rows.push([r.rank, d.city, d.name, r.total].concat(D.COMPS.map(function(c){ return Math.round(r.s[c.k]); }), [d.pop, d.hh, d.dens, d.inc], d.age.map(function(v){ return (v / d.pop * 100).toFixed(1); }), [d.metro.length, d.rail.length, d.hsr.length, D.RENT_TIERS[r.tier].n, d.tags.map(function(t){ return D.TAGS[t]; }).join('、')])); });
+  var vdist = S.vdist || S.sel, vd = vdist && vData(vdist.slice(0, 3));
+  if(vd){
+    rows.push([]); rows.push(['街區名次', '行政區', '里', '街區適合度'].concat(D.VCOMPS.map(function(c){ return c.n; }), ['人口', '戶數', '人口密度', '所得中位數(千元)', '65歲以上%', '最近車站', '距離(m)', '500m內車站數'], D.POI_K.map(function(k){ return D.POI_N[k] + '(OSM)'; })));
+    D.scoreVillages(vd.list.filter(function(v){ return v.d === vdist; }), S.ctx).forEach(function(r){ var v = r.v; rows.push([r.rank, v.d, v.n, r.total].concat(D.VCOMPS.map(function(c){ return Math.round(r.s[c.k]); }), [v.pop, v.hh, v.dens, v.inc || '', (D.vShare(v, 4) * 100).toFixed(1), v.st[0], v.st[2], v.s5], v.poi)); });
+  }
   if(S.sites.length){
     rows.push([]); rows.push(['候選店面', '所在區', '月租(萬)', '坪數', '人流(人/時)', '預估月營業額(萬)', '租金占比%'].concat(D.SITE_COMPS.map(function(c){ return c.n; }), ['總分']));
     S.sites.forEach(function(s){ var sc = D.scoreSite(s, S.ctx); rows.push([s.name, s.district, s.rent, s.ping, s.traffic, sc.revenue, sc.ratio].concat(D.SITE_COMPS.map(function(c){ return Math.round(sc.s[c.k]); }), [sc.total])); });
@@ -460,15 +676,22 @@ function reportEl(){
     '#pdfReport .kp{page-break-inside:avoid}#pdfReport ul{margin:4px 0;padding-left:1.3em}</style>' +
     '<div id="pdfReport"><h1>開店選址評估報告' + (c.name ? '：' + esc(c.name) : '') + '</h1>' +
     '<p class="meta">產出日期 ' + today() + '・店型 ' + D.TYPES[c.type].n + '・客群 ' + (c.targets.length ? c.targets.map(function(t){ return D.TARGETS[t].n; }).join('、') : '未指定') + '・範圍 ' + (c.cities.length ? c.cities.join('、') : '台北市、新北市、桃園市、新竹市、新竹縣') + '・月租預算 ' + (c.budget ? c.budget + ' 萬元' : '未填') + '</p>' +
-    '<p class="warn">評分為規則式參考，不保證營業成績。人口為內政部戶政司民國 ' + D.DIST.meta.popYm.slice(0, 3) + ' 年 ' + (+D.DIST.meta.popYm.slice(3)) + ' 月統計、所得為財政部 ' + D.DIST.meta.incYear + ' 年度資料；租金級距與區域性質為自行整理的粗估；車站依 OpenStreetMap 站點判斷。</p>' +
-    '<h2>一、適合度前 10 名</h2><div class="kp">' + mapSvgStatic(rows) + '</div>' +
+    '<p class="warn">評分為規則式參考，不保證營業成績。村里店家數來自 OpenStreetMap 志工登錄、不完整。人口為內政部戶政司民國 ' + D.DIST.meta.popYm.slice(0, 3) + ' 年 ' + (+D.DIST.meta.popYm.slice(3)) + ' 月統計、所得為財政部 ' + D.DIST.meta.incYear + ' 年度資料；租金級距與區域性質為自行整理的粗估；車站依 OpenStreetMap 站點判斷。</p>' +
+    '<h2>行政區適合度前 10 名</h2><div class="kp">' + mapSvgStatic(rows) + '</div>' +
     '<table class="kp"><thead><tr><th>名次</th><th class="l">行政區</th><th>適合度</th><th>人口</th><th>密度</th><th>所得中位數</th><th>65+%</th><th>車站</th><th class="l">租金級距</th></tr></thead><tbody>' +
     top.map(function(r){ var d = r.d; return '<tr><td>' + r.rank + '</td><td class="l">' + d.city + d.name + '</td><td>' + r.total + '</td><td>' + fmtN(d.pop) + '</td><td>' + fmtN(d.dens) + '</td><td>' + d.inc + '</td><td>' + (D.share(d, 4) * 100).toFixed(1) + '</td><td>' + (d.metro.length + d.rail.length + d.hsr.length) + '</td><td class="l">' + D.RENT_TIERS[r.tier].n + '</td></tr>'; }).join('') + '</tbody></table>' +
     top.slice(0, 3).map(function(r){ var e = D.explain(r, c); return '<div class="kp"><p style="margin:8px 0 0"><b>' + r.rank + '. ' + r.d.city + r.d.name + '（' + r.total + ' 分）</b></p><ul>' + e.good.map(function(t){ return '<li>✔ ' + esc(t) + '</li>'; }).join('') + e.warn.map(function(t){ return '<li>⚠ ' + esc(t) + '</li>'; }).join('') + '</ul></div>'; }).join('');
+  var vdist = S.vdist || S.sel, vd = vdist && vData(vdist.slice(0, 3));
+  if(vd){
+    var vrows = D.scoreVillages(vd.list.filter(function(v){ return v.d === vdist; }), c);
+    h += '<h2>街區（村里）：' + esc(vdist) + ' 前 10 名</h2><table class="kp"><thead><tr><th>名次</th><th class="l">里</th><th>街區適合度</th><th>人口</th><th>密度</th><th>所得中位數</th><th class="l">最近車站</th><th>距離(m)</th><th>店家(OSM)</th></tr></thead><tbody>' +
+      vrows.slice(0, 10).map(function(r){ var v = r.v; return '<tr><td>' + r.rank + '</td><td class="l">' + esc(v.n) + '</td><td>' + r.total + '</td><td>' + fmtN(v.pop) + '</td><td>' + fmtN(v.dens) + '</td><td>' + (v.inc || '—') + '</td><td class="l">' + esc(v.st[0]) + '</td><td>' + fmtN(v.st[2]) + '</td><td>' + D.vPoi(v) + '</td></tr>'; }).join('') + '</tbody></table>' +
+      '<p class="meta">村里分數只和同區的里比較；店家數來自 OpenStreetMap 志工登錄，台北市以外漏登較多；距離為里中心到車站的直線距離。</p>';
+  }
   if(S.sites.length){
     var scs = S.sites.map(function(s){ return D.scoreSite(s, c); }), total = 0; D.CHECK.forEach(function(g){ total += g.items.length; });
-    h += '<h2>二、候選店面比較</h2><table class="kp"><thead><tr><th class="l">項目</th>' + S.sites.map(function(s){ return '<th>' + esc(s.name) + '</th>'; }).join('') + '</tr></thead><tbody>' +
-      [['所在區', function(s){ return esc(s.district || '—'); }], ['月租（萬）', function(s){ return s.rent === undefined ? '—' : s.rent; }], ['坪數', function(s){ return s.ping === undefined ? '—' : s.ping; }], ['人流（人／時）', function(s){ return s.traffic === undefined ? '—' : fmtN(s.traffic); }],
+    h += '<h2>候選店面比較</h2><table class="kp"><thead><tr><th class="l">項目</th>' + S.sites.map(function(s){ return '<th>' + esc(s.name) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      [['所在區', function(s){ return esc(s.district || '—'); }], ['所在里', function(s){ var v = villOf(s.village, s.district); return v ? esc(v.n) : '—'; }], ['月租（萬）', function(s){ return s.rent === undefined ? '—' : s.rent; }], ['坪數', function(s){ return s.ping === undefined ? '—' : s.ping; }], ['人流（人／時）', function(s){ return s.traffic === undefined ? '—' : fmtN(s.traffic); }],
        ['預估月營業額（萬）', function(s, sc){ return sc.revenue || '—'; }], ['租金占比', function(s, sc){ return sc.ratio === null ? '—' : sc.ratio + '%'; }]]
       .concat(D.SITE_COMPS.map(function(x){ return [x.n, function(s, sc){ return Math.round(sc.s[x.k]); }]; }), [['總分', function(s, sc){ return '<b>' + sc.total + '</b>'; }], ['看店清單', function(s){ return Object.keys(s.checks).length + '/' + total; }]])
       .map(function(rw){ return '<tr><td class="l">' + rw[0] + '</td>' + S.sites.map(function(s, i){ return '<td>' + rw[1](s, scs[i]) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>' +
@@ -523,6 +746,7 @@ var WARN_HTML = '<h2>⚠ 使用警語</h2><ul>' +
   '<li>人口、年齡、戶數來自內政部戶政司民國 ' + D.DIST.meta.popYm.slice(0, 3) + ' 年 ' + (+D.DIST.meta.popYm.slice(3)) + ' 月統計；所得來自財政部財政資訊中心 ' + D.DIST.meta.incYear + ' 年度綜稅資料（不含免稅與分離課稅所得），都有時間差，也只到行政區層級，同一區不同街道差很多。</li>' +
   '<li><b>租金級距與區域性質是自行整理的粗估</b>，不是官方統計，實際租金請看當地行情；你可以在 ⚙ 常用設定逐區修改。</li>' +
   '<li>車站數依 OpenStreetMap 的站點位置自動判斷，行政區界線上的車站可能算到隔壁區；面積由界線圖計算，是概略值。</li>' +
+  '<li>「🏘 街區」的店家數來自 OpenStreetMap 志工登錄，<b>不完整</b>（台北市以外漏登較多），只在比較範圍內排名；離車站距離是里中心的直線距離，實際走路更遠。</li>' +
   '<li>店面能不能開這種店（使用分區、建物用途、消防、室內裝修）請以縣市政府與承辦機關認定為準，簽約前一定要確認。</li>' +
   '<li>你填的條件、店面與人流紀錄<b>只存在這台裝置的瀏覽器</b>，不會上傳；清除瀏覽器資料就會不見，重要資料請用「⚙ 常用設定 → 資料備份」。</li>' +
   '<li>範例店家與店面全部是虛構的。</li></ul>';
@@ -540,7 +764,7 @@ function openSettings(){
     sec('demo', '看範例', demo ? '範例模式中' : '', '<p class="small">用虛構的店家看看成果，你自己的資料不受影響。</p><div class="stack">' + D.EXAMPLES.map(function(e){ return '<button class="btn sm alt" data-demo="' + e.key + '">' + esc(e.label) + '</button>'; }).join('') + (demo ? '<button class="btn sm" data-act="leaveDemo">離開範例</button>' : '') + '</div>') +
     sec('about', '關於本工具', '', '<p>👤 創作者 Mark Tsai（蔡豐全）<br><a href="mailto:tsaimark@gmail.com">tsaimark@gmail.com</a></p><div class="stack"><a class="btn sm alt" href="manual.html">📖 操作手冊</a><button class="btn sm alt" data-act="warn">⚠ 使用警語</button>' +
       (standalone ? '' : '<button class="btn sm alt" data-act="install">📲 加入主畫面</button>') + '</div><p class="small" style="margin-top:.5rem">訪客數 <img src="https://visitor-badge.laobi.icu/badge?page_id=m255525.shopsiteselector" alt="訪客次數" height="20" loading="lazy" style="vertical-align:middle"></p>' +
-      '<p class="small">資料來源：內政部戶政司人口統計、財政部財政資訊中心綜稅所得統計、內政部國土測繪中心鄉鎮市區界線（經 taiwan-atlas 整理）、© OpenStreetMap contributors 車站位置（ODbL）。</p>') +
+      '<p class="small">資料來源：內政部戶政司人口統計、財政部財政資訊中心綜稅所得統計、內政部國土測繪中心鄉鎮市區界線（經 taiwan-atlas 整理）與村里界圖、© OpenStreetMap contributors 車站與店家位置（ODbL）。</p>') +
     '<div class="stack"><button class="btn" data-act="close">關閉</button></div>';
   openModal(h);
   var open = lsJson('fold', []);
@@ -574,10 +798,15 @@ function enterDemo(key){
 function leaveDemo(){ demo = false; S = saved || load(); saved = null; V.radar = null; V.cnt = null; V.chkSite = null; closeModal(); render(); toast('已回到你自己的資料'); }
 
 /* ---------- 事件 ---------- */
+function setVSel(code, dist){
+  S.vsel = code; if(dist && D.byId(dist)) S.vdist = dist; save(); render();
+  if(innerWidth < 900){ var d = $('vdetail'); if(d) d.scrollIntoView({behavior:'smooth', block:'start'}); }
+}
 function setSel(id){ S.sel = id; save(); render(); if(innerWidth < 900){ var d = $('detail'); if(d) d.scrollIntoView({behavior:'smooth', block:'start'}); } }
-function addSite(district){
+function addSite(district, village){
   if(S.sites.length >= MAXSITES){ toast('最多 ' + MAXSITES + ' 間'); return; }
-  var s = cleanSite({name:'店面 ' + String.fromCharCode(65 + S.sites.length), district:district || S.sel || ''});
+  var vv = village ? villOf(village, district) : null;
+  var s = cleanSite({name:vv ? vv.n + '店面' : '店面 ' + String.fromCharCode(65 + S.sites.length), district:district || S.sel || '', village:village || ''});
   S.sites.push(s); V.radar = null; save(); V.tab = 'sites'; lsSet('tab', 'sites'); render(); window.scrollTo(0, 0); toast('已新增「' + s.name + '」');
 }
 var ACT = {
@@ -591,6 +820,9 @@ var ACT = {
   saveName:function(){ S.ctx.name = ($('setName').value || '').slice(0, 30); save(); closeModal(); render(); },
   addSite:function(){ addSite(''); },
   addSiteHere:function(el){ addSite(el.dataset.d); },
+  addSiteVill:function(el){ addSite(el.dataset.d, el.dataset.v); },
+  goVill:function(el){ S.vdist = el.dataset.d; S.vsel = ''; V.vAll = false; save(); V.tab = 'vill'; lsSet('tab', 'vill'); render(); window.scrollTo(0, 0); },
+  vToggleAll:function(){ V.vAll = !V.vAll; render(); },
   delSite:function(el){
     var id = el.dataset.sid, s = S.sites.filter(function(x){ return x.id === id; })[0]; if(!s) return;
     if(V.delPending !== id){ V.delPending = id; el.textContent = '再按一次確認刪除'; el.classList.add('red'); setTimeout(function(){ if(V.delPending === id){ V.delPending = null; if(el.isConnected){ el.textContent = '刪除'; el.classList.remove('red'); } } }, 3000); return; }
@@ -622,7 +854,7 @@ var ACT = {
 };
 function siteBy(id){ return S.sites.filter(function(x){ return x.id === id; })[0]; }
 document.addEventListener('click', function(e){
-  var t = e.target.closest('[data-act],[data-tab],[data-type],[data-target],[data-city],[data-flag],[data-layer],[data-demo],[data-fontsize],[data-sort],[data-radar],[data-cnt-site],[data-cnt-day],[data-cnt-slot],[data-cnt-min],[data-chk-site],.rrow[data-d],#map [data-d],.dot[data-d],tr[data-d]');
+  var t = e.target.closest('[data-act],[data-tab],[data-type],[data-target],[data-city],[data-flag],[data-layer],[data-demo],[data-fontsize],[data-sort],[data-radar],[data-cnt-site],[data-cnt-day],[data-cnt-slot],[data-cnt-min],[data-chk-site],[data-vlayer],[data-vscope],[data-vsort],[data-v],.rrow[data-d],#map [data-d],.dot[data-d],tr[data-d]');
   if(!t){ if(e.target === $('modal')) closeModal(); return; }
   var ds = t.dataset, c = S.ctx;
   if(ds.act){ if(t.tagName === 'A') e.preventDefault(); if(ACT[ds.act]) ACT[ds.act](t); return; }
@@ -641,11 +873,15 @@ document.addEventListener('click', function(e){
   if(ds.cntSlot){ V.cnt.slot = ds.cntSlot; render(); return; }
   if(ds.cntMin){ V.cnt.target = +ds.cntMin; render(); return; }
   if(ds.chkSite){ V.chkSite = ds.chkSite; render(); return; }
+  if(ds.vlayer){ S.vlayer = ds.vlayer; save(); render(); return; }
+  if(ds.vscope){ S.vscope = ds.vscope; V.vAll = false; save(); render(); return; }
+  if(ds.vsort){ if(V.vsortK === ds.vsort) V.vsortDir = -V.vsortDir; else { V.vsortK = ds.vsort; V.vsortDir = ds.vsort === 'rank' || ds.vsort === 'name' || ds.vsort === 'st' ? 1 : -1; } render(); return; }
+  if(ds.v){ setVSel(ds.v, ds.vd); return; }
   if(ds.d){ setSel(ds.d); return; }
 });
 document.addEventListener('keydown', function(e){
   if(e.key === 'Escape' && !$('modal').hidden) closeModal();
-  if((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('rrow')){ e.preventDefault(); setSel(e.target.dataset.d); }
+  if((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('rrow')){ e.preventDefault(); if(e.target.dataset.v) setVSel(e.target.dataset.v, e.target.dataset.vd); else setSel(e.target.dataset.d); }
   if(V.tab === 'count' && e.key === ' ' && $('modal').hidden && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)){ e.preventDefault(); tap(1); }
 });
 var wTimer = null;
@@ -660,7 +896,9 @@ document.addEventListener('input', function(e){
   if(ds.sk && ds.sid){
     var s = siteBy(ds.sid); if(!s) return;
     if(ds.sk === 'name'){ s.name = t.value.slice(0, 30); }
-    else if(ds.sk === 'district' || ds.sk === 'floor' || ds.sk === 'cond'){ s[ds.sk] = t.value; }
+    else if(ds.sk === 'district'){ s.district = t.value; s.village = ''; save(); render(); return; }
+    else if(ds.sk === 'village'){ return; }
+    else if(ds.sk === 'floor' || ds.sk === 'cond'){ s[ds.sk] = t.value; }
     else if(ds.sk === 'park' || ds.sk === 'vis'){ s[ds.sk] = +t.value; }
     else { var n = +t.value, lim = NUMF[ds.sk]; if(t.value === '' || !isFinite(n)) delete s[ds.sk]; else s[ds.sk] = Math.max(lim[0], Math.min(lim[1], n)); }
     save(); clearTimeout(wTimer); wTimer = setTimeout(refreshSites, 200);
@@ -669,11 +907,14 @@ document.addEventListener('input', function(e){
 document.addEventListener('change', function(e){
   var t = e.target, ds = t.dataset;
   if(ds.chk){ var s = siteBy(V.chkSite); if(!s) return; if(t.checked) s.checks[ds.chk] = 1; else delete s.checks[ds.chk]; save(); render(); return; }
+  if(ds.vdist){ S.vdist = t.value; S.vsel = ''; V.vAll = false; save(); render(); return; }
+  if(ds.sk === 'village' && ds.sid){ var sv = siteBy(ds.sid); if(sv){ sv.village = t.value; save(); refreshSites(); } return; }
   if(ds.rentov){ var v = +t.value, d = D.byId(ds.rentov); if(v === d.rent) delete S.ctx.rentOverride[d.id]; else S.ctx.rentOverride[d.id] = v; save(); render(); return; }
 });
 document.addEventListener('toggle', function(e){
   if(e.target.id === 'advW'){ if(e.target.open) lsSet('advOpen', '1'); else lsDel('advOpen'); }
   if(e.target.id === 'tblD'){ if(e.target.open) lsSet('tblOpen', '1'); else lsDel('tblOpen'); }
+  if(e.target.id === 'vtblD'){ if(e.target.open) lsSet('vtblOpen', '1'); else lsDel('vtblOpen'); }
 }, true);
 /* 滑過提示 */
 document.addEventListener('pointermove', function(e){
@@ -685,6 +926,12 @@ document.addEventListener('pointermove', function(e){
     showTip(e, '<b>' + esc(rr.d.name) + '・' + x.n + '</b><br>得分 ' + Math.round(rr.s[x.k]) + ' × 權重 ' + Math.round(rr.w[x.k] / sw * 100) + '%<br>＝ ' + rr.parts[x.k].toFixed(1) + ' 分<br><span style="opacity:.8">' + x.s + '</span>'); return; }
   if(t.dataset && t.dataset.sseg !== undefined){ var s = siteBy(t.dataset.sid), sc = D.scoreSite(s, S.ctx), y = D.SITE_COMPS[+t.dataset.sseg];
     showTip(e, '<b>' + esc(s.name) + '・' + y.n + '</b><br>得分 ' + Math.round(sc.s[y.k]) + ' × 權重 ' + sc.w[y.k] + '%<br>＝ ' + sc.parts[y.k].toFixed(1) + ' 分'); return; }
+  if(t.closest && t.closest('#vmap [data-v]')){ var vv = villOf(t.closest('[data-v]').dataset.v, vDist()); if(vv){ var vr = (vCache.rows || []).filter(function(x){ return x.id === vv.id; })[0], kk = S.vlayer, sm = {}; if(vr) sm[vv.id] = vr.total;
+    showTip(e, '<b>' + esc(vv.n) + '</b><br>' + (kk === 'same' ? '同類店家' : D.VLAYERS[kk].n) + '：' + vFmt(kk, vLayerVal(kk, vv, sm)) + (kk !== 'score' && vr ? '<br>街區適合度 ' + vr.total + '（第 ' + vr.rank + ' 名）' : '') + '<br>人口 ' + fmtN(vv.pop) + '・離' + esc(vv.st[0]) + '站 ' + vFmt('st', vv.st[2])); return; } }
+  if(t.dataset && t.dataset.vseg !== undefined){ var vrow = t.closest('.rrow'), vr2 = (vCache.rows || []).filter(function(x){ return x.id === vrow.dataset.v; })[0], vx = D.VCOMPS[+t.dataset.vseg], vsw = 0; if(vr2){ D.VCOMPS.forEach(function(c){ vsw += vr2.w[c.k]; });
+    showTip(e, '<b>' + esc(vr2.v.n) + '・' + vx.n + '</b><br>得分 ' + Math.round(vr2.s[vx.k]) + ' × 權重 ' + Math.round(vr2.w[vx.k] / vsw * 100) + '%<br>＝ ' + vr2.parts[vx.k].toFixed(1) + ' 分<br><span style="opacity:.8">' + vx.s + '</span>'); return; } }
+  if(t.classList && t.classList.contains('dot') && t.dataset.v){ var dv = villOf(t.dataset.v, vDist()); if(dv){ showTip(e, '<b>' + esc(dv.n) + '</b><br>離' + esc(dv.st[0]) + '站 ' + vFmt('st', dv.st[2]) + '<br>人口密度 ' + fmtN(dv.dens) + ' 人／km²<br>人口 ' + fmtN(dv.pop)); return; } }
+  if(t.closest && t.closest('.stn')){ showTip(e, esc(t.closest('.stn').dataset.tipv)); return; }
   if(t.classList && t.classList.contains('dot')){ var dd = D.byId(t.dataset.d), r2 = rankOf(t.dataset.d); showTip(e, '<b>' + esc(dd.id) + '</b><br>人口密度 ' + fmtN(dd.dens) + ' 人／km²<br>所得中位數 ' + dd.inc + ' 千元<br>人口 ' + fmtN(dd.pop) + (r2 ? '<br>適合度 ' + r2.total + '（第 ' + r2.rank + ' 名）' : '')); return; }
   if(t.dataset && (t.dataset.tipv || t.dataset.rtip)){ showTip(e, esc(t.dataset.tipv || t.dataset.rtip)); return; }
   hideTip();

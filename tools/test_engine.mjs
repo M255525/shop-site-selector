@@ -67,5 +67,37 @@ ok(sc({ floor: '2' }) < sc({}), '二樓分數低');
 ok(sc({ walk: 1 }) > sc({ walk: 14 }), '近車站分數高');
 ok(sc({ comp: 9 }) < sc({}), '同業多分數低');
 ok(D.scoreSite({}, { type: 'food' }).total >= 0, '空店面不報錯');
+// 街區（村里）
+globalThis.window = globalThis.window || {};
+for (const slug of Object.values(D.CITY_SLUG)) require('../villages/' + slug + '.js');
+const VV = window.SSS_VILL;
+ok(Object.keys(VV).length === 5, '5 個縣市村里檔');
+let nv = 0;
+for (const d of L) {
+  const vs = VV[d.city].list.filter(v => v.d === d.id && !v.u);
+  nv += vs.length;
+  ok(vs.length > 0, d.id + ' 有村里');
+  ok(vs.reduce((a, v) => a + v.pop, 0) === d.pop, d.id + ' 村里人口加總＝區人口');
+  for (const v of vs) {
+    ok(v.age.reduce((a, b) => a + b, 0) === v.pop && v.area > 0 && v.p.length > 20, v.id + ' 村里資料');
+    ok(v.st[2] >= 0 && v.st[2] < 40000 && D.ST_K[v.st[1]], v.id + ' 最近車站');
+    ok(v.poi.length === 5 && v.poi.every(x => x >= 0), v.id + ' 店家數');
+  }
+  for (const type of types) {
+    const r = D.scoreVillages(VV[d.city].list.filter(v => v.d === d.id), { type, targets: ['family', 'worker'] });
+    ok(r.length === vs.length && r.every(x => x.total >= 0 && x.total <= 100 && isFinite(x.total)), d.id + ' ' + type + ' 村里分數');
+    ok(r.every(x => Math.abs(Object.values(x.parts).reduce((a, b) => a + b, 0) - x.total) < .11), '村里組成加總');
+  }
+}
+ok(nv === 2339, '有人口的村里 2339 個：' + nv);
+const allInc = Object.values(VV).flatMap(c => c.list.filter(v => !v.u));
+ok(allInc.filter(v => !v.inc).length < 40, '缺所得的里少於 40：' + allInc.filter(v => !v.inc).length);
+ok(D.transScore(200) === 100 && D.transScore(2000) === 0 && D.transScore(875) === 50, '車站距離分數');
+// 離車站近的里 trans 分數高、空清單不報錯
+ok(D.scoreVillages([], { type: 'food' }).length === 0, '空村里清單');
+const da = VV['臺北市'].list.filter(v => v.d === '臺北市大安區');
+const rr = D.scoreVillages(da, { type: 'food', targets: ['student'] });
+ok(rr.find(x => x.v.n === '大學里').total > rr[rr.length - 1].total, '大學里不是最後');
+ok(D.explainVillage(rr[0], { type: 'food' }).good.length > 0, '村里說明');
 console.log(`${n - fail}/${n} passed, ${combos} 種條件組合`);
 process.exit(fail ? 1 : 0);

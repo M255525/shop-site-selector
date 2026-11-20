@@ -30,6 +30,7 @@ for g in geos:
 minx = min(p[0] for p in allp); maxx = max(p[0] for p in allp)
 miny = min(p[1] for p in allp); maxy = max(p[1] for p in allp)
 W = 1000; S = W / ((maxx - minx) * K); H = round((maxy - miny) * S)
+json.dump({'minx': minx, 'maxy': maxy, 'K': K, 'S': S, 'W': W, 'H': H}, open('tools/raw/proj.json', 'w'))
 def pr(p): return ((p[0] - minx) * K * S, (maxy - p[1]) * S)
 def simplify(pts, eps):
     if len(pts) < 4: return pts
