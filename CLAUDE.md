@@ -4,7 +4,7 @@
 
 - 純靜態：`index.html`（CSS）＋`districts_data.js`（產出檔，70 區資料）＋`map_data.js`（產出檔，SVG 界線）＋`villages/<tpe|ntpc|tyc|hsc|hsq>.js`（產出檔，每縣市一檔，進「🏘 街區」或店面選了區才 `loadCity()` 動態載入，共約 1.6 MB）＋`stat/<鄉鎮市區代碼8碼>.js`（產出檔，最小統計區，每區一檔、選到那區且切到「最小統計區」才 `loadStat()`，共約 20 MB、最大中壢 835 KB）＋`data.js`（規則引擎，node 也能 require）＋`app.js`（畫面）＋`ui.js`（縮放、連動高亮）＋`ai.js`（AI 助手）＋`watermark.js`＋`manual.html`＋PWA。
 - 本機預覽 port **8898**（`.claude/launch.json` 的 `shop-site-selector`）。visitor-badge `m255525.shopsiteselector`。
-- 部署：`.github/workflows/deploy-pages.yml`（push master 自動部署 GitHub Pages）：<https://m255525.github.io/shop-site-selector/>（**2026-11-20 上線**，使用者說「push」後由 Claude `gh repo create` 公開 repo；照 memory 的坑：push → 開 Pages → 補 master 部署規則 → `gh workflow run deploy-pages.yml`，第一次 push 觸發的部署失敗屬正常）。已加進 AI 工具導航（`shop` 情境第二步「挑地點」）、程式牆與 github-dashboard 的 `REPO_META`。
+- 部署：`.github/workflows/deploy-pages.yml`（push master 自動部署 GitHub Pages）：<https://m255525.github.io/shop-site-selector/>（**2026-11-20 上線**，使用者說「push」後由 Claude `gh repo create` 公開 repo；照 memory 的坑：push → 開 Pages → 補 master 部署規則 → `gh workflow run deploy-pages.yml`，第一次 push 觸發的部署失敗屬正常）。已加進 AI 工具導航（`shop` 情境第二步「挑地點」）、創業島資金廣場（接力線 l35、l36）、程式牆與 github-dashboard 的 `REPO_META`。
 
 ## 資料（逐項標來源，改了要同步 manual、警語、報告文字）
 - 人口／戶數／年齡：內政部戶政司 ODRP014（村里、單一年齡）民國 115 年 10 月，彙總到區。`tools/fetch_population.py`。
