@@ -507,32 +507,93 @@ function vCardHtml(rows, dist, list){
     '<div class="stack"><button class="btn" data-act="addSiteVill" data-d="' + v.d + '" data-v="' + (st ? v.vl : v.id) + '"' + (st ? ' data-stat="' + v.id + '"' : '') + '>📍 在這' + (st ? '塊' : '個里') + '新增候選店面</button>' +
       '<button class="btn alt" data-act="aiUnit" data-v="' + v.id + '">🤖 AI 解讀這' + (st ? '塊' : '個里') + '</button></div></div>';
 }
-/* 街區定位圖：x＝離車站距離、y＝人口密度（對數）、圓＝人口 */
+/* 好讀的刻度：1、2、5 × 10^k */
+function niceStep(range, n){ var raw = range / Math.max(1, n), p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+function linTicks(a, b, n){ var st = niceStep(b - a, n), out = []; for(var v = Math.ceil(a / st) * st; v <= b + st * 1e-9; v += st) out.push(Math.round(v * 1e6) / 1e6); return out; }
+function logTicks(a, b){
+  var lo = Math.floor(Math.log10(a)), hi = Math.ceil(Math.log10(b)), out = [], dec = Math.log10(b) - Math.log10(a);
+  for(var e = lo; e <= hi; e++) [1, 2, 5].forEach(function(m){ var v = m * Math.pow(10, e); if(v >= a * .999 && v <= b * 1.001 && (m === 1 || dec <= 2.2)) out.push(v); });
+  return out.length >= 2 ? out : [a, b];
+}
+function fmtTick(v){ return v >= 10000 ? (v / 10000).toLocaleString('zh-TW') + ' 萬' : fmtN(v); }
+/* 街區／統計區定位圖：x＝離車站距離、y＝人口密度、圓＝人口；兩軸範圍可調（輸入、快選、拖曳框選、自動） */
 function vScatterHtml(rows, dist){
   var list = rows.filter(function(r){ return r.v.d === dist; }); if(!list.length) return '';
-  var W = 600, H = 360, ml = 52, mr = 14, mt = 14, mb = 40;
-  var dm = Math.max.apply(null, list.map(function(r){ return r.v.st[2]; })), xmax = dm <= 1000 ? 1000 : dm <= 2000 ? 2000 : 3000, xstep = xmax === 1000 ? 200 : 500;
-  var lx = function(m){ return ml + Math.min(m, xmax) / xmax * (W - ml - mr); };
-  var ds = list.map(function(r){ return Math.max(r.v.dens, 1); }), lo = Math.floor(Math.log10(Math.min.apply(null, ds))), hi = Math.ceil(Math.log10(Math.max.apply(null, ds)) + .05);
-  if(hi - lo < 1) hi = lo + 1;
-  var ly = function(v){ return mt + (1 - (Math.log10(Math.max(v, 1)) - lo) / (hi - lo)) * (H - mt - mb); };
-  var yt = []; for(var e = lo; e <= hi; e++){ yt.push(Math.pow(10, e)); if(hi - lo <= 2 && e < hi) yt.push(3 * Math.pow(10, e)); }
+  var W = 600, H = 360, ml = 58, mr = 14, mt = 14, mb = 40;
+  var dm = Math.max.apply(null, list.map(function(r){ return r.v.st[2]; })), dsAll = list.map(function(r){ return Math.max(r.v.dens, 1); });
+  var autoX = [0, dm <= 1000 ? 1000 : dm <= 2000 ? 2000 : dm <= 3000 ? 3000 : Math.ceil(dm / 1000) * 1000];
+  var autoY = [Math.pow(10, Math.floor(Math.log10(Math.min.apply(null, dsAll)))), Math.pow(10, Math.ceil(Math.log10(Math.max.apply(null, dsAll)) + .02))];
+  var ax = V.vsc || {}, ylog = ax.ylog !== false;
+  var x0 = isFinite(ax.xmin) ? ax.xmin : autoX[0], x1 = isFinite(ax.xmax) ? ax.xmax : autoX[1];
+  var y0 = isFinite(ax.ymin) ? ax.ymin : ylog ? autoY[0] : 0, y1 = isFinite(ax.ymax) ? ax.ymax : autoY[1];
+  if(!(x1 > x0)){ x0 = autoX[0]; x1 = autoX[1]; }
+  if(ylog && y0 <= 0) y0 = 1;
+  if(!(y1 > y0)){ y0 = ylog ? autoY[0] : 0; y1 = autoY[1]; }
+  var custom = !!(V.vsc && Object.keys(V.vsc).some(function(k){ return k !== 'ylog'; }));
+  var lx = function(m){ return ml + (m - x0) / (x1 - x0) * (W - ml - mr); };
+  var ly = ylog ? function(v){ return mt + (1 - (Math.log10(Math.max(v, 1e-9)) - Math.log10(y0)) / (Math.log10(y1) - Math.log10(y0))) * (H - mt - mb); }
+               : function(v){ return mt + (1 - (v - y0) / (y1 - y0)) * (H - mt - mb); };
+  var inR = function(r){ return r.v.st[2] >= x0 && r.v.st[2] <= x1 && r.v.dens >= y0 && r.v.dens <= y1; };
   var top = {}; list.slice(0, 10).forEach(function(r){ top[r.id] = 1; });
   var g = '', rk = isStat() ? 40 : 14;
-  for(var xm = 0; xm <= xmax + 1; xm += xstep) (function(m){ g += '<line class="gl" x1="' + lx(m) + '" x2="' + lx(m) + '" y1="' + mt + '" y2="' + (H - mb) + '"></line><text x="' + lx(m) + '" y="' + (H - mb + 16) + '" text-anchor="middle">' + (m >= xmax && xmax === 3000 ? '3k+' : fmtN(m)) + '</text>'; })(xm);
-  yt.forEach(function(v){ g += '<line class="gl" x1="' + ml + '" x2="' + (W - mr) + '" y1="' + ly(v) + '" y2="' + ly(v) + '"></line><text x="' + (ml - 6) + '" y="' + (ly(v) + 4) + '" text-anchor="end">' + fmtN(v) + '</text>'; });
-  g += '<line class="med" x1="' + lx(800) + '" x2="' + lx(800) + '" y1="' + mt + '" y2="' + (H - mb) + '"></line><text class="q" x="' + (lx(800) + 4) + '" y="' + (mt + 12) + '">步行約 10 分鐘</text>';
-  g += '<text x="' + ((W + ml) / 2) + '" y="' + (H - 6) + '" text-anchor="middle">← 離車站越近　' + lvN() + '中心到最近車站（公尺）</text><text x="12" y="' + (H / 2) + '" text-anchor="middle" transform="rotate(-90 12 ' + (H / 2) + ')">人口密度（人／km²，對數）→</text>';
-  list.slice().sort(function(a, c){ return (top[a.id] ? 1 : 0) - (top[c.id] ? 1 : 0) || (a.id === S.vsel) - (c.id === S.vsel); }).forEach(function(r){
+  linTicks(x0, x1, 6).forEach(function(m){ g += '<line class="gl" x1="' + lx(m).toFixed(1) + '" x2="' + lx(m).toFixed(1) + '" y1="' + mt + '" y2="' + (H - mb) + '"></line><text x="' + lx(m).toFixed(1) + '" y="' + (H - mb + 16) + '" text-anchor="middle">' + fmtTick(m) + '</text>'; });
+  (ylog ? logTicks(y0, y1) : linTicks(y0, y1, 5)).forEach(function(v){ g += '<line class="gl" x1="' + ml + '" x2="' + (W - mr) + '" y1="' + ly(v).toFixed(1) + '" y2="' + ly(v).toFixed(1) + '"></line><text x="' + (ml - 6) + '" y="' + (ly(v) + 4).toFixed(1) + '" text-anchor="end">' + fmtTick(v) + '</text>'; });
+  if(800 > x0 && 800 < x1) g += '<line class="med" x1="' + lx(800) + '" x2="' + lx(800) + '" y1="' + mt + '" y2="' + (H - mb) + '"></line><text class="q" x="' + (lx(800) + 4) + '" y="' + (mt + 12) + '">步行約 10 分鐘</text>';
+  g += '<text x="' + ((W + ml) / 2) + '" y="' + (H - 6) + '" text-anchor="middle">← 離車站越近　' + lvN() + '中心到最近車站（公尺）</text><text x="12" y="' + (H / 2) + '" text-anchor="middle" transform="rotate(-90 12 ' + (H / 2) + ')">人口密度（人／km²' + (ylog ? '，對數' : '') + '）→</text>';
+  var shown = list.filter(inR), hidden = list.length - shown.length;
+  g += '<g clip-path="url(#vscClip)">';
+  shown.slice().sort(function(a, c){ return (top[a.id] ? 1 : 0) - (top[c.id] ? 1 : 0) || (a.id === S.vsel) - (c.id === S.vsel); }).forEach(function(r){
     var rr = Math.max(isStat() ? 2.5 : 4, 2 + Math.sqrt(r.v.pop) / rk);
     g += '<circle class="dot ' + (top[r.id] ? 'top' : 'oth') + (S.vsel === r.id ? ' sel' : '') + '" data-v="' + r.id + '" cx="' + lx(r.v.st[2]).toFixed(1) + '" cy="' + ly(r.v.dens).toFixed(1) + '" r="' + rr.toFixed(1) + '"></circle>';
   });
-  var lbl = list.slice(0, 5).map(function(r){ return '<text x="' + lx(r.v.st[2]).toFixed(1) + '" y="' + (ly(r.v.dens) - 6).toFixed(1) + '" text-anchor="middle" style="font-weight:700;fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:3px;pointer-events:none">' + esc(r.v.n) + '</text>'; }).join('');
-  return '<div class="card"><h2 class="ctitle"><span class="dwg">V-03</span>' + (isStat() ? '統計區' : '街區') + '定位圖<span class="sub">左上＝離站近又人多；點圓點選取</span></h2>' +
+  g += shown.filter(function(r){ return top[r.id]; }).slice(0, 5).map(function(r){ return '<text x="' + lx(r.v.st[2]).toFixed(1) + '" y="' + (ly(r.v.dens) - 6).toFixed(1) + '" text-anchor="middle" style="font-weight:700;fill:var(--ink);paint-order:stroke;stroke:var(--paper);stroke-width:3px;pointer-events:none">' + esc(r.v.n) + '</text>'; }).join('') + '</g>';
+  var num = function(k, v, ph){ return '<input type="number" class="vscin" data-vsc="' + k + '" value="' + (isFinite(ax[k]) ? ax[k] : '') + '" placeholder="' + ph + '" min="0" step="any" aria-label="' + ph + '">'; };
+  var qx = [[500, '500m 內'], [1000, '1 公里內'], [2000, '2 公里內']].map(function(q){ return '<button class="chip' + (ax.xmax === q[0] && !ax.xmin ? ' on' : '') + '" data-vscq="x" data-v1="' + q[0] + '">' + q[1] + '</button>'; }).join('');
+  var qy = (ylog ? [[1000, '1 千以上'], [10000, '1 萬以上'], [30000, '3 萬以上']] : [[10000, '1 萬以上'], [30000, '3 萬以上']]).map(function(q){ return '<button class="chip' + (ax.ymin === q[0] && !isFinite(ax.ymax) ? ' on' : '') + '" data-vscq="y" data-v1="' + q[0] + '">' + q[1] + '</button>'; }).join('');
+  return '<div class="card"><h2 class="ctitle"><span class="dwg">V-03</span>' + (isStat() ? '統計區' : '街區') + '定位圖<span class="sub">左上＝離站近又人多；在圖上拖曳框選可放大</span></h2>' +
+    '<div class="vscbar">' +
+      '<div class="vscrow"><b>X 離車站</b>' + num('xmin', x0, '自動 ' + autoX[0]) + '<span>～</span>' + num('xmax', x1, '自動 ' + fmtTick(autoX[1])) + '<span class="unit">公尺</span>' + qx + '</div>' +
+      '<div class="vscrow"><b>Y 人口密度</b>' + num('ymin', y0, '自動 ' + fmtTick(ylog ? autoY[0] : 0)) + '<span>～</span>' + num('ymax', y1, '自動 ' + fmtTick(autoY[1])) + '<span class="unit">人／km²</span>' + qy +
+        '<button class="chip' + (ylog ? ' on' : '') + '" data-vsclog="1">對數</button><button class="chip' + (!ylog ? ' on' : '') + '" data-vsclog="0">線性</button></div>' +
+      '<div class="vscrow"><button class="btn sm' + (custom ? '' : ' alt') + '" data-act="vscAuto"' + (custom ? '' : ' disabled') + '>⟲ 自動範圍</button><span class="small muted">' + (hidden ? '有 ' + hidden + ' 個' + lvN() + '在範圍外沒畫出來' : '全部 ' + list.length + ' 個都在圖上') + '</span></div></div>' +
     '<div class="lgd"><span><i class="sw" style="background:var(--s1);border-radius:50%"></i>本區前 10 名</span><span><i class="sw" style="background:var(--ref);border-radius:50%"></i>其他</span><span><i class="sw" style="border:2px solid var(--pin);border-radius:50%"></i>目前選的</span></div>' +
-    '<svg class="svgchart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="離車站距離與人口密度散布圖">' + g + lbl + '</svg>' +
+    '<div class="vscwrap"><svg class="svgchart" id="vsc" viewBox="0 0 ' + W + ' ' + H + '" data-brush="' + [W, H, ml, mr, mt, mb, x0, x1, y0, y1, ylog ? 1 : 0].join(',') + '" role="img" aria-label="離車站距離與人口密度散布圖">' +
+      '<defs><clipPath id="vscClip"><rect x="' + ml + '" y="' + mt + '" width="' + (W - ml - mr) + '" height="' + (H - mt - mb) + '"></rect></clipPath></defs>' + g + '<rect id="vscBrush" class="brush" x="0" y="0" width="0" height="0"></rect></svg></div>' +
     '<p class="src">直線距離，實際走路通常多 2～4 成。戶籍人口密度高代表住的人多，不一定代表白天逛街的人多。</p></div>';
 }
+/* 拖曳框選放大：把螢幕座標換回資料範圍 */
+(function(){
+  var st = null;
+  function toData(svg, cx, cy){
+    var p = svg.getAttribute('data-brush').split(',').map(Number), W = p[0], H = p[1], ml = p[2], mr = p[3], mt = p[4], mb = p[5], x0 = p[6], x1 = p[7], y0 = p[8], y1 = p[9], lg = p[10];
+    var r = svg.getBoundingClientRect(), sx = (cx - r.left) / r.width * W, sy = (cy - r.top) / r.height * H;
+    sx = Math.min(Math.max(sx, ml), W - mr); sy = Math.min(Math.max(sy, mt), H - mb);
+    var fx = (sx - ml) / (W - ml - mr), fy = 1 - (sy - mt) / (H - mt - mb);
+    return {sx:sx, sy:sy, x:x0 + fx * (x1 - x0), y:lg ? Math.pow(10, Math.log10(y0) + fy * (Math.log10(y1) - Math.log10(y0))) : y0 + fy * (y1 - y0)};
+  }
+  document.addEventListener('pointerdown', function(e){
+    var svg = e.target.closest && e.target.closest('svg[data-brush]'); if(!svg || e.button !== 0) return;
+    st = {svg:svg, a:toData(svg, e.clientX, e.clientY), cx:e.clientX, cy:e.clientY, moved:false};
+  });
+  document.addEventListener('pointermove', function(e){
+    if(!st) return;
+    if(!st.moved && Math.hypot(e.clientX - st.cx, e.clientY - st.cy) < 6) return;
+    st.moved = true; e.preventDefault();
+    var b = toData(st.svg, e.clientX, e.clientY), r = st.svg.querySelector('#vscBrush');
+    r.setAttribute('x', Math.min(st.a.sx, b.sx)); r.setAttribute('y', Math.min(st.a.sy, b.sy)); r.setAttribute('width', Math.abs(b.sx - st.a.sx)); r.setAttribute('height', Math.abs(b.sy - st.a.sy));
+  });
+  document.addEventListener('pointerup', function(e){
+    if(!st) return; var s = st; st = null;
+    if(!s.moved) return;
+    var b = toData(s.svg, e.clientX, e.clientY);
+    if(Math.abs(b.sx - s.a.sx) < 8 || Math.abs(b.sy - s.a.sy) < 8){ s.svg.querySelector('#vscBrush').setAttribute('width', 0); return; }
+    var r2 = function(v){ return v >= 100 ? Math.round(v) : Math.round(v * 10) / 10; };
+    V.vsc = Object.assign({}, V.vsc || {}, {xmin:Math.max(0, r2(Math.min(s.a.x, b.x))), xmax:r2(Math.max(s.a.x, b.x)), ymin:r2(Math.min(s.a.y, b.y)), ymax:r2(Math.max(s.a.y, b.y))});
+    V.brushAt = Date.now(); softRender(); toast('已放大到框選範圍，按「⟲ 自動範圍」恢復');
+  });
+  // 框選完那一下不要當成點選圓點
+  document.addEventListener('click', function(e){ if(V.brushAt && Date.now() - V.brushAt < 400){ V.brushAt = 0; e.stopPropagation(); e.preventDefault(); } }, true);
+})();
 function vTableHtml(rows, dist){
   var list = rows.filter(function(r){ return (!isStat() && S.vscope === 'range') || r.v.d === dist; }), same = D.SAME[S.ctx.type], st = isStat();
   var cols = [['rank', '名次'], ['name', lvN()], ['total', '適合度'], ['pop', '人口'], ['dens', '密度'], ['inc', st ? '所屬里所得' : '所得中位數'], ['st', '離車站 m'], ['biz', st ? '300m 店家' : '店家(OSM)']].concat(same ? [['same', D.POI_N[same] + (st ? '(300m)' : '(OSM)')]] : []).concat([['old', st ? '60+%' : '65+%']]);
@@ -940,6 +1001,7 @@ var ACT = {
   addSiteVill:function(el){ addSite(el.dataset.d, el.dataset.v, el.dataset.stat); },
   goVill:function(el){ S.vdist = el.dataset.d; S.vsel = ''; V.vAll = false; save(); V.tab = 'vill'; lsSet('tab', 'vill'); render(); window.scrollTo(0, 0); },
   vToggleAll:function(){ V.vAll = !V.vAll; render(); },
+  vscAuto:function(){ V.vsc = V.vsc && V.vsc.ylog === false ? {ylog:false} : null; softRender(); },
   delSite:function(el){
     var id = el.dataset.sid, idx = S.sites.findIndex(function(x){ return x.id === id; }), s = S.sites[idx]; if(!s) return;
     var ses = S.sessions.filter(function(x){ return x.site === id; });
@@ -979,7 +1041,7 @@ var ACT = {
 };
 function siteBy(id){ return S.sites.filter(function(x){ return x.id === id; })[0]; }
 document.addEventListener('click', function(e){
-  var t = e.target.closest('[data-act],[data-tab],[data-type],[data-target],[data-city],[data-flag],[data-layer],[data-demo],[data-fontsize],[data-sort],[data-radar],[data-cnt-site],[data-cnt-day],[data-cnt-slot],[data-cnt-min],[data-chk-site],[data-vlayer],[data-vscope],[data-vlevel],[data-bin],[data-vsort],[data-v],.rrow[data-d],#map [data-d],.dot[data-d],tr[data-d]');
+  var t = e.target.closest('[data-act],[data-tab],[data-type],[data-target],[data-city],[data-flag],[data-layer],[data-demo],[data-fontsize],[data-sort],[data-radar],[data-cnt-site],[data-cnt-day],[data-cnt-slot],[data-cnt-min],[data-chk-site],[data-vlayer],[data-vscope],[data-vlevel],[data-bin],[data-vscq],[data-vsclog],[data-vsort],[data-v],.rrow[data-d],#map [data-d],.dot[data-d],tr[data-d]');
   if(!t){ if(e.target === $('modal')) closeModal(); return; }
   var ds = t.dataset, c = S.ctx;
   if(ds.act){ if(t.tagName === 'A') e.preventDefault(); if(ACT[ds.act]) ACT[ds.act](t); return; }
@@ -999,7 +1061,9 @@ document.addEventListener('click', function(e){
   if(ds.cntMin){ V.cnt.target = +ds.cntMin; render(); return; }
   if(ds.chkSite){ V.chkSite = ds.chkSite; render(); return; }
   if(ds.vlayer){ S.vlayer = ds.vlayer; V.binF = null; save(); render(); return; }
-  if(ds.vlevel){ if(S.vlevel !== ds.vlevel){ S.vlevel = ds.vlevel; S.vsel = ''; V.vAll = false; V.binF = null; V.vsortK = 'rank'; V.vsortDir = 1; save(); render(); } return; }
+  if(ds.vscq){ var q = +ds.v1, o = Object.assign({}, V.vsc || {}); if(ds.vscq === 'x'){ var onx = o.xmax === q && !o.xmin; delete o.xmin; if(onx) delete o.xmax; else o.xmax = q; } else { var ony = o.ymin === q && !isFinite(o.ymax); delete o.ymax; if(ony) delete o.ymin; else o.ymin = q; } V.vsc = o; softRender(); return; }
+  if(ds.vsclog){ var o2 = Object.assign({}, V.vsc || {}); o2.ylog = ds.vsclog === '1'; delete o2.ymin; delete o2.ymax; V.vsc = o2; softRender(); return; }
+  if(ds.vlevel){ if(S.vlevel !== ds.vlevel){ S.vlevel = ds.vlevel; S.vsel = ''; V.vAll = false; V.binF = null; V.vsc = null; V.vsortK = 'rank'; V.vsortDir = 1; save(); render(); } return; }
   if(ds.bin !== undefined){ var bb = +ds.bin; V.binF = bb < 0 || (V.binF && V.binF.map === ds.binmap && V.binF.b === bb) ? null : {map:ds.binmap, b:bb}; if(window.SSS_UI) window.SSS_UI.binFilter(); else render(); return; }
   if(ds.vscope){ S.vscope = ds.vscope; V.vAll = false; save(); render(); return; }
   if(ds.vsort){ if(V.vsortK === ds.vsort) V.vsortDir = -V.vsortDir; else { V.vsortK = ds.vsort; V.vsortDir = ds.vsort === 'rank' || ds.vsort === 'name' || ds.vsort === 'st' ? 1 : -1; } render(); return; }
@@ -1040,10 +1104,14 @@ document.addEventListener('input', function(e){
 });
 document.addEventListener('change', function(e){
   var t = e.target, ds = t.dataset;
+  if(ds.vsc){ var o = Object.assign({}, V.vsc || {}), v = parseFloat(t.value); if(t.value === '' || !isFinite(v) || v < 0) delete o[ds.vsc]; else o[ds.vsc] = v;
+    if(isFinite(o.xmin) && isFinite(o.xmax) && o.xmin >= o.xmax){ toast('X 的最小值要小於最大值'); delete o[ds.vsc]; }
+    if(isFinite(o.ymin) && isFinite(o.ymax) && o.ymin >= o.ymax){ toast('Y 的最小值要小於最大值'); delete o[ds.vsc]; }
+    V.vsc = o; softRender(); return; }
   if(t.id === 'afind'){ var q = t.value.trim(), d = D.byId(q) || D.list.filter(function(x){ return x.name.indexOf(q.replace(/[區市鎮鄉]$/, '')) >= 0 || x.id.indexOf(q) >= 0; })[0]; if(d && q){ setSel(d.id); var dt = $('detail'); if(dt) dt.scrollIntoView({behavior:'smooth', block:'nearest'}); } else if(q) toast('找不到「' + q + '」'); return; }
   if(t.id === 'vfind'){ var q2 = t.value.trim(), dist = vDist(), u = unitsOf(dist).filter(function(x){ return !x.u && (x.n === q2 || x.n.indexOf(q2) >= 0); })[0]; if(u && q2) setVSel(u.id, dist); else if(q2) toast('這區找不到「' + q2 + '」'); return; }
   if(ds.chk){ var s = siteBy(V.chkSite); if(!s) return; if(t.checked) s.checks[ds.chk] = 1; else delete s.checks[ds.chk]; save(); render(); return; }
-  if(ds.vdist){ S.vdist = t.value; S.vsel = ''; V.vAll = false; save(); render(); return; }
+  if(ds.vdist){ S.vdist = t.value; S.vsel = ''; V.vAll = false; V.vsc = null; save(); render(); return; }
   if(ds.sk === 'village' && ds.sid){ var sv = siteBy(ds.sid); if(sv){ sv.village = t.value; save(); refreshSites(); } return; }
   if(ds.rentov){ var v = +t.value, d = D.byId(ds.rentov); if(v === d.rent) delete S.ctx.rentOverride[d.id]; else S.ctx.rentOverride[d.id] = v; save(); render(); return; }
 });
